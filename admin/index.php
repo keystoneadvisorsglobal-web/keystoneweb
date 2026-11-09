@@ -4962,7 +4962,7 @@ $scans_list = $db->query("
                   <div style="font-size:1.1rem; margin-bottom:0.35rem;">🎉 ¡Campaña y Calendario Programados Exitosamente!</div>
                   <div style="font-size:0.85rem; font-weight:normal; color:#374151;">
                     Se guardaron <strong>${data.scheduled_posts} publicaciones</strong> en la cola desatendida para la campaña <code>${data.campaign_name}</code>.<br>
-                    El despachador automático (`cron/dispatch_scheduled_campaigns.php`) las publicará en la Página de Keystone Advisors Global a medida que llegue la fecha estipulada.
+                    El despachador automático ('cron/dispatch_scheduled_campaigns.php') las publicará en la Página de Keystone Advisors Global a medida que llegue la fecha estipulada.
                   </div>
                 </div>
               `;
