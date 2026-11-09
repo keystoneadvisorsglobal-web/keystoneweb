@@ -3405,14 +3405,17 @@ $scans_list = $db->query("
             Atribución multicanal en tiempo real, Buyer Intent Scoring con telemetría UX y generador de piezas con Google Gemini 3.8 Flash + Cloudflare FLUX.1.
           </p>
         </div>
-        <div style="display:flex; gap:0.75rem;">
-          <button onclick="document.getElementById('modalAiAdGenerator').style.display='flex';" style="background:linear-gradient(135deg, #0284c7 0%, #003366 100%); color:#ffffff; border:none; padding:0.65rem 1.25rem; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; gap:0.5rem; box-shadow:0 4px 12px rgba(2,132,199,0.3);">
-            <span>✨</span> Generar Avisos con IA (Gemini + FLUX)
+        <div style="display:flex; gap:0.65rem; flex-wrap:wrap;">
+          <button type="button" onclick="openLinkedInDirectStudio();" style="background:linear-gradient(135deg, #0a66c2 0%, #004182 100%); color:#ffffff; border:none; padding:0.65rem 1.25rem; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer; display:flex; align-items:center; gap:0.5rem; box-shadow:0 4px 14px rgba(10,102,194,0.35);">
+            <span style="font-size:1.1rem;">💼</span> Publicador Directo LinkedIn (Página Empresa)
           </button>
-          <button onclick="document.getElementById('modalLinkBuilder').style.display='flex';" style="background:#0f172a; color:#f8fafc; border:1px solid #334155; padding:0.65rem 1.25rem; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; gap:0.5rem;">
+          <button type="button" onclick="document.getElementById('modalAiAdGenerator').style.display='flex';" style="background:linear-gradient(135deg, #0284c7 0%, #003366 100%); color:#ffffff; border:none; padding:0.65rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; gap:0.45rem; box-shadow:0 2px 8px rgba(2,132,199,0.25);">
+            <span>✨</span> Generador Multicanal IA
+          </button>
+          <button type="button" onclick="document.getElementById('modalLinkBuilder').style.display='flex';" style="background:#0f172a; color:#f8fafc; border:1px solid #334155; padding:0.65rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; gap:0.45rem;">
             <span>🔗</span> Constructor UTM
           </button>
-          <button onclick="document.getElementById('modalAdsAccounts').style.display='flex';" style="background:#ffffff; color:#003366; border:1px solid #cbd5e1; padding:0.65rem 1.25rem; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; gap:0.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <button type="button" onclick="document.getElementById('modalAdsAccounts').style.display='flex';" style="background:#ffffff; color:#003366; border:1px solid #cbd5e1; padding:0.65rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; gap:0.45rem; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
             <span>⚙️</span> Conectar Redes Ads
           </button>
         </div>
