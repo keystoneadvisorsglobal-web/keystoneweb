@@ -695,6 +695,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // =========================================================================
 // ACCIONES KEYSTONE GROWTH ENGINE & IA GENERATOR (SOL-0172)
 // =========================================================================
+// Regenerar Banner Visual con Nuevas Instrucciones (SOL-0177)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'growth_regenerate_banner' && isset($_SESSION['admin_logged'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    require_once __DIR__ . '/../api/KeystoneGrowthService.php';
+
+    $tenantSlug = trim($_POST['tenant_slug'] ?? 'keystone_deepshield');
+    $topic = trim($_POST['topic'] ?? 'Ciberseguridad Corporativa');
+    $customInstructions = trim($_POST['custom_instructions'] ?? '');
+
+    $res = KeystoneGrowthService::generateBannerFlux($tenantSlug, $topic, $customInstructions);
+    echo json_encode($res);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'growth_generate_ai' && isset($_SESSION['admin_logged'])) {
     header('Content-Type: application/json; charset=utf-8');
     require_once __DIR__ . '/../api/KeystoneGrowthService.php';
@@ -3904,12 +3918,28 @@ $scans_list = $db->query("
                 <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.35rem;">
                   Banner Visual Adjunto (Cloudflare FLUX.1):
                 </label>
-                <div id="liBannerPreviewBox" style="background:#0f172a; border-radius:8px; padding:0.75rem; text-align:center;">
-                  <img id="liBannerPreviewImg" src="" alt="Banner LinkedIn" style="max-width:100%; height:auto; max-height:220px; border-radius:6px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
-                  <div style="margin-top:0.5rem;">
+                <div id="liBannerPreviewBox" style="background:#0f172a; border-radius:8px; padding:0.85rem; text-align:center;">
+                  <img id="liBannerPreviewImg" src="" alt="Banner LinkedIn" style="max-width:100%; height:auto; max-height:220px; border-radius:6px; box-shadow:0 4px 10px rgba(0,0,0,0.5); margin-bottom:0.5rem;">
+                  
+                  <div style="display:flex; justify-content:center; gap:0.75rem; margin-bottom:0.75rem;">
                     <a id="liBannerPreviewLink" href="" target="_blank" download="banner_keystone_linkedin.jpg" style="color:#38bdf8; font-size:0.75rem; text-decoration:none; font-weight:700;">
                       🔍 Ver Imagen Completa
                     </a>
+                    <button type="button" onclick="toggleLiRegenBox();" style="background:#334155; color:#f8fafc; border:none; padding:0.2rem 0.6rem; border-radius:4px; font-size:0.75rem; font-weight:700; cursor:pointer;">
+                      🎨 Ajustar / Regenerar Imagen
+                    </button>
+                  </div>
+
+                  <!-- Caja Desplegable de Instrucciones para Regenerar -->
+                  <div id="liRegenControls" style="display:none; background:#1e293b; border:1px solid #475569; border-radius:6px; padding:0.75rem; text-align:left;">
+                    <label style="display:block; font-size:0.72rem; color:#94a3b8; font-weight:700; margin-bottom:0.35rem;">
+                      Indicaciones de mejora para la IA (ej: "más minimalista, vista isométrica 3D, sin personas, destacar logo azul"):
+                    </label>
+                    <input type="text" id="li_regen_instructions" placeholder="Escribe aquí las correcciones o estilo deseado..." style="width:100%; padding:0.45rem; border:1px solid #64748b; border-radius:4px; font-size:0.78rem; background:#0f172a; color:#f8fafc; margin-bottom:0.5rem;">
+                    
+                    <button type="button" id="btnLiRegen" onclick="executeBannerRegeneration('li');" style="width:100%; background:#0284c7; color:#fff; border:none; padding:0.5rem; border-radius:4px; font-size:0.78rem; font-weight:800; cursor:pointer;">
+                      ⚡ Regenerar Banner con estas Indicaciones
+                    </button>
                   </div>
                 </div>
               </div>
@@ -4044,11 +4074,26 @@ $scans_list = $db->query("
             
             <div id="aiBannerResults" style="display:none; text-align:center; background:#0f172a; border-radius:8px; padding:1.5rem; margin-bottom:1.25rem;">
               <h5 style="color:#f8fafc; font-size:0.95rem; margin:0 0 1rem 0;">🖼️ Banner Generado por Cloudflare FLUX.1 (1024x1024)</h5>
-              <img id="aiBannerImg" src="" alt="Banner IA" style="max-width:100%; height:auto; max-height:420px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
-              <div style="margin-top:1rem;">
+              <img id="aiBannerImg" src="" alt="Banner IA" style="max-width:100%; height:auto; max-height:360px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); margin-bottom:1rem;">
+              
+              <div style="display:flex; justify-content:center; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem;">
                 <a id="aiBannerDownloadBtn" href="" target="_blank" download="banner_keystone_flux.jpg" style="background:#10b981; color:#fff; text-decoration:none; padding:0.5rem 1rem; border-radius:6px; font-size:0.82rem; font-weight:700;">
-                  ⬇️ Abrir / Descargar Imagen en Alta Resolución
+                  ⬇️ Abrir / Descargar Imagen
                 </a>
+                <button type="button" onclick="document.getElementById('boxAiRegenInput').style.display = document.getElementById('boxAiRegenInput').style.display === 'none' ? 'block' : 'none';" style="background:#334155; color:#f8fafc; border:none; padding:0.5rem 1rem; border-radius:6px; font-size:0.82rem; font-weight:700; cursor:pointer;">
+                  🎨 Ajustar / Regenerar con Indicaciones
+                </button>
+              </div>
+
+              <!-- Caja de Instrucciones para Regenerar en Generador Multicanal -->
+              <div id="boxAiRegenInput" style="display:none; background:#1e293b; border:1px solid #475569; border-radius:8px; padding:1rem; max-width:600px; margin:0 auto; text-align:left;">
+                <label style="display:block; font-size:0.78rem; color:#94a3b8; font-weight:700; margin-bottom:0.35rem;">
+                  Nuevas indicaciones de estilo o correcciones para FLUX.1:
+                </label>
+                <input type="text" id="ai_regen_instructions" placeholder="Ej: dramatic dark lighting, modern fintech holographic glass, ultra realistic" style="width:100%; padding:0.55rem; border:1px solid #64748b; border-radius:6px; font-size:0.82rem; background:#0f172a; color:#f8fafc; margin-bottom:0.6rem;">
+                <button type="button" id="btnAiRegenMulti" onclick="executeBannerRegeneration('multi');" style="width:100%; background:#0284c7; color:#fff; border:none; padding:0.65rem; border-radius:6px; font-size:0.85rem; font-weight:800; cursor:pointer;">
+                  ⚡ Regenerar Banner Ahora con estas Indicaciones
+                </button>
               </div>
             </div>
           </div>
@@ -4513,6 +4558,111 @@ $scans_list = $db->query("
         }
 
         
+        
+        function toggleLiRegenBox() {
+          const el = document.getElementById("liRegenControls");
+          el.style.display = el.style.display === "none" ? "block" : "none";
+          if (el.style.display === "block") {
+            document.getElementById("li_regen_instructions").focus();
+          }
+        }
+
+        async function executeBannerRegeneration(source) {
+          let btn = null;
+          let instructions = "";
+          let tenantSlug = "keystone_deepshield";
+          let topic = "Ciberseguridad Corporativa";
+
+          if (source === "li") {
+            btn = document.getElementById("btnLiRegen");
+            instructions = document.getElementById("li_regen_instructions").value.trim();
+            const theme = document.getElementById("li_theme").value;
+            tenantSlug = (theme === "sinnotario" || theme === "keyhub") ? theme : ("keystone_" + theme);
+            topic = document.getElementById("li_goal").value;
+          } else {
+            btn = document.getElementById("btnAiRegenMulti");
+            instructions = document.getElementById("ai_regen_instructions").value.trim();
+            tenantSlug = document.getElementById("ai_tenant_id").value;
+            topic = document.getElementById("ai_campaign_goal").value;
+          }
+
+          const orig = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = "Generando nueva imagen con FLUX.1... ⏳";
+
+          const fd = new FormData();
+          fd.append("action", "growth_regenerate_banner");
+          fd.append("tenant_slug", tenantSlug);
+          fd.append("topic", topic);
+          fd.append("custom_instructions", instructions);
+
+          try {
+            const res = await fetch("index.php", { method: "POST", body: fd });
+            const data = await res.json();
+
+            if (data.success && data.image_url) {
+              if (source === "li") {
+                document.getElementById("liBannerPreviewImg").src = data.image_url;
+                document.getElementById("liBannerPreviewLink").href = data.image_url;
+                window._liDirectImagePath = data.image_url;
+                document.getElementById("liRegenControls").style.display = "none";
+              } else {
+                document.getElementById("aiBannerImg").src = data.image_url;
+                document.getElementById("aiBannerDownloadBtn").href = data.image_url;
+                document.getElementById("boxAiRegenInput").style.display = "none";
+              }
+            } else {
+              alert("Error al regenerar imagen: " + (data.error || "Fallo en motor FLUX.1"));
+            }
+          } catch(err) {
+            alert("Error de conexión: " + err.message);
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+          }
+        }
+
+        function togglePostRegenBox(idx) {
+          const el = document.getElementById("post_regen_box_" + idx);
+          el.style.display = el.style.display === "none" ? "block" : "none";
+        }
+
+        async function executePostBannerRegen(idx) {
+          const btn = document.getElementById("btn_post_regen_" + idx);
+          const promptInp = document.getElementById("post_regen_prompt_" + idx);
+          const instructions = promptInp.value.trim();
+          const orig = btn.innerHTML;
+
+          btn.disabled = true;
+          btn.innerHTML = "Generando con FLUX... ⏳";
+
+          const fd = new FormData();
+          fd.append("action", "growth_regenerate_banner");
+          fd.append("tenant_slug", _cpCurrentBatch.tenant_slug);
+          fd.append("topic", _cpCurrentBatch.posts[idx].post_title + " - " + _cpCurrentBatch.topic);
+          fd.append("custom_instructions", instructions);
+
+          try {
+            const res = await fetch("index.php", { method: "POST", body: fd });
+            const data = await res.json();
+
+            if (data.success && data.image_url) {
+              _cpCurrentBatch.posts[idx].banner_image_url = data.image_url;
+              document.getElementById("post_img_preview_box_" + idx).innerHTML = 
+                `<img src="${data.image_url}" style="width:50px; height:50px; object-fit:cover; border-radius:6px; border:1px solid #cbd5e1; cursor:pointer;" onclick="window.open('${data.image_url}', '_blank');">`;
+              document.getElementById("post_img_status_" + idx).innerHTML = "<span style='color:#16a34a; font-weight:700;'>✓ Imagen Actualizada</span>";
+              document.getElementById("post_regen_box_" + idx).style.display = "none";
+            } else {
+              alert("Error al generar imagen para este post: " + (data.error || "Fallo en motor"));
+            }
+          } catch(err) {
+            alert("Error: " + err.message);
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+          }
+        }
+
         let _cpCurrentBatch = null;
 
         function openCampaignPlannerModal() {
@@ -4650,9 +4800,39 @@ $scans_list = $db->query("
                   <textarea rows="5" onchange="_cpCurrentBatch.posts[${idx}].post_text = this.value;" style="width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; line-height:1.45; color:#1e293b; background:#f8fafc;">${item.post_text}</textarea>
                 </div>
 
-                <div style="background:#f1f5f9; border-radius:6px; padding:0.6rem 0.85rem; font-size:0.75rem; display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+                <div style="background:#f1f5f9; border-radius:6px; padding:0.6rem 0.85rem; font-size:0.75rem; display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:0.75rem;">
                   <span style="color:#475569; font-weight:600;">🔗 UTM asignada:</span>
                   <code style="color:#0369a1; word-break:break-all;">${item.utm_url}</code>
+                </div>
+
+                <!-- Bloque Banner Individual para este Post de Campaña -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:0.85rem;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                      <div id="post_img_preview_box_${idx}">
+                        ${item.banner_image_url ? `<img src="${item.banner_image_url}" style="width:50px; height:50px; object-fit:cover; border-radius:6px; border:1px solid #cbd5e1;">` : `<div style="width:50px; height:50px; background:#e2e8f0; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">🖼️</div>`}
+                      </div>
+                      <div>
+                        <div style="font-weight:700; font-size:0.82rem; color:#1e293b;">Banner Visual de este Post</div>
+                        <span id="post_img_status_${idx}" style="font-size:0.72rem; color:#64748b;">${item.banner_image_url ? '✓ Imagen Asociada' : 'Sin banner generado aún (opcional)'}</span>
+                      </div>
+                    </div>
+                    <button type="button" onclick="togglePostRegenBox(${idx});" style="background:#0284c7; color:#fff; border:none; padding:0.35rem 0.75rem; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer;">
+                      🎨 ${item.banner_image_url ? 'Regenerar con Indicaciones' : '⚡ Generar Banner para este Post'}
+                    </button>
+                  </div>
+
+                  <div id="post_regen_box_${idx}" style="display:none; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid #e2e8f0;">
+                    <label style="display:block; font-size:0.72rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">
+                      Indicaciones específicas para la imagen de este post (ej: "gráfico financiero de pérdidas BEC, estilo 3D cian"):
+                    </label>
+                    <div style="display:flex; gap:0.5rem;">
+                      <input type="text" id="post_regen_prompt_${idx}" value="${item.visual_prompt || ''}" placeholder="Instrucciones visuales..." style="flex:1; padding:0.45rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem;">
+                      <button type="button" id="btn_post_regen_${idx}" onclick="executePostBannerRegen(${idx});" style="background:#059669; color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; font-size:0.78rem; font-weight:800; cursor:pointer; white-space:nowrap;">
+                        Generar Imagen
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             `;
