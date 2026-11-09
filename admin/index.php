@@ -3632,6 +3632,153 @@ $scans_list = $db->query("
         </div>
       <?php endif; ?>
 
+      
+      <!-- MODAL DEDICADO: LINKEDIN PUBLISHING STUDIO (SOL-0175) -->
+      <div id="modalLinkedInDirectStudio" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.8); z-index:9999; justify-content:center; align-items:center; padding:1.5rem; overflow-y:auto;">
+        <div style="background:#ffffff; border-radius:14px; width:100%; max-width:920px; max-height:92vh; overflow-y:auto; padding:2.25rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35); border:1px solid #cbd5e1;">
+          
+          <!-- Encabezado Modal -->
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; border-bottom:1px solid #e2e8f0; padding-bottom:1rem;">
+            <div>
+              <div style="display:flex; align-items:center; gap:0.6rem;">
+                <span style="font-size:1.8rem;">💼</span>
+                <h3 style="font-size:1.35rem; font-weight:800; color:#003366; margin:0;">
+                  Publicador Oficial LinkedIn Empresa · Keystone Advisors Global
+                </h3>
+              </div>
+              <p style="font-size:0.84rem; color:#64748b; margin:0.35rem 0 0 0;">
+                Genera el artículo B2B con IA, asocia la URL de aterrizaje con tracking UTM automático y publica directamente en la Página de Empresa en 1 clic.
+              </p>
+            </div>
+            <button onclick="document.getElementById('modalLinkedInDirectStudio').style.display='none';" style="background:none; border:none; font-size:1.6rem; cursor:pointer; color:#64748b;">&times;</button>
+          </div>
+
+          <!-- Formulario LinkedIn Studio -->
+          <form id="formLiStudio" onsubmit="generateLinkedInArticleDirect(event);">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+              <div>
+                <label style="display:block; font-weight:700; font-size:0.82rem; color:#334155; margin-bottom:0.35rem;">
+                  Línea de Negocio / Tema Corporativo *
+                </label>
+                <select id="li_theme" onchange="onLiThemeChanged(this.value);" style="width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.88rem; font-weight:600; color:#0f172a; background:#f8fafc;">
+                  <option value="salesforce">Salesforce FSC, Core CRM, LWC & Banca (Keystone Advisors)</option>
+                  <option value="deepshield">Ciberseguridad DeepShield, Fraude BEC & Ley 21.459 (Keystone Advisors)</option>
+                  <option value="cloud">Arquitectura Cloud, Microservicios & Resiliencia TI (Keystone Advisors)</option>
+                  <option value="sinnotario">SinNotario.cl (Trámites Legales, Verificación & Firma FEA)</option>
+                  <option value="keyhub">KeyHub Suite (Control de Rentabilidad & Horas Consultoras)</option>
+                  <option value="custom">✏️ Tema Personalizado / Redacción Libre...</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="display:block; font-weight:700; font-size:0.82rem; color:#334155; margin-bottom:0.35rem;">
+                  ¿A dónde debe dirigir el enlace del post? (Landing de Destino) *
+                </label>
+                <select id="li_landing_base" onchange="refreshLiUtmPreview();" style="width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.88rem; font-weight:600; color:#0f172a; background:#f8fafc;">
+                  <option value="https://www.keystoneadvisors.cl/">Keystone Advisors (Home Principal)</option>
+                  <option value="https://www.keystoneadvisors.cl/#contact">Keystone Advisors (Formulario Diagnóstico / Contacto)</option>
+                  <option value="https://sinnotario.cl/">SinNotario.cl (Plataforma Trámites)</option>
+                  <option value="https://keyhub.keystoneadvisors.cl/">KeyHub Suite (Acceso SaaS)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Título / Tesis del Post y Audiencia -->
+            <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:1rem; margin-bottom:1rem;">
+              <div>
+                <label style="display:block; font-weight:700; font-size:0.82rem; color:#334155; margin-bottom:0.35rem;">
+                  Tema Clave o Tesis del Post *
+                </label>
+                <input type="text" id="li_goal" value="Cómo modernizar el Core CRM bancario con Salesforce FSC sin interrumpir operaciones" required style="width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.88rem;">
+              </div>
+              <div>
+                <label style="display:block; font-weight:700; font-size:0.82rem; color:#334155; margin-bottom:0.35rem;">
+                  Audiencia / Buyer Persona *
+                </label>
+                <input type="text" id="li_audience" value="Gerentes de TI, CIOs, Directores de Canales y Operaciones de Banca" required style="width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.88rem;">
+              </div>
+            </div>
+
+            <!-- Enlace con UTM y Banner -->
+            <div style="background:#f1f5f9; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1.25rem;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                <span style="font-weight:700; font-size:0.82rem; color:#1e293b;">
+                  🔗 Enlace con UTM de Rastreo que se insertará al final del Post:
+                </span>
+                <span style="font-size:0.75rem; color:#059669; font-weight:700;">✓ Generado Automáticamente</span>
+              </div>
+              <input type="text" id="li_built_utm_url" readonly style="width:100%; padding:0.55rem; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; color:#0369a1; font-family:monospace;">
+              
+              <div style="margin-top:0.75rem; display:flex; align-items:center; gap:0.6rem;">
+                <input type="checkbox" id="li_gen_banner" checked style="cursor:pointer;">
+                <label for="li_gen_banner" style="font-weight:700; font-size:0.82rem; color:#334155; cursor:pointer;">
+                  Diseñar Banner Visual Corporativo con Cloudflare FLUX.1 (1024x1024 px)
+                </label>
+              </div>
+            </div>
+
+            <button type="submit" id="btnLiGenArticle" style="width:100%; background:linear-gradient(135deg, #0a66c2 0%, #004182 100%); color:#ffffff; border:none; padding:0.9rem; border-radius:8px; font-weight:800; font-size:0.98rem; cursor:pointer; box-shadow:0 4px 14px rgba(10,102,194,0.3);">
+              ⚡ 1. Generar Artículo B2B con IA & Banner Ahora
+            </button>
+          </form>
+
+          <!-- Resultados y Editor en Vivo del Post para LinkedIn -->
+          <div id="liPostEditorSection" style="display:none; margin-top:1.5rem; border-top:1px solid #e2e8f0; padding-top:1.25rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+              <h4 style="margin:0; font-size:1.1rem; color:#003366; font-weight:800;">
+                📝 2. Vista Previa y Edición del Post antes de Publicar
+              </h4>
+              <span style="font-size:0.75rem; background:#dcfce7; color:#166534; padding:0.25rem 0.6rem; border-radius:4px; font-weight:700;">
+                ✓ Listo para Revisión
+              </span>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1.2fr 0.8fr; gap:1.25rem; margin-bottom:1.5rem;">
+              <!-- Editor de Texto -->
+              <div>
+                <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.35rem;">
+                  Texto que se publicará en LinkedIn (puedes editarlo o afinarlo):
+                </label>
+                <textarea id="li_editor_textarea" rows="11" style="width:100%; padding:0.85rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.88rem; line-height:1.5; color:#1e293b; font-family:sans-serif; background:#ffffff;"></textarea>
+              </div>
+
+              <!-- Banner Preview -->
+              <div>
+                <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.35rem;">
+                  Banner Visual Adjunto (Cloudflare FLUX.1):
+                </label>
+                <div id="liBannerPreviewBox" style="background:#0f172a; border-radius:8px; padding:0.75rem; text-align:center;">
+                  <img id="liBannerPreviewImg" src="" alt="Banner LinkedIn" style="max-width:100%; height:auto; max-height:220px; border-radius:6px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
+                  <div style="margin-top:0.5rem;">
+                    <a id="liBannerPreviewLink" href="" target="_blank" download="banner_keystone_linkedin.jpg" style="color:#38bdf8; font-size:0.75rem; text-decoration:none; font-weight:700;">
+                      🔍 Ver Imagen Completa
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Botón de Publicación Definitiva -->
+            <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+              <div>
+                <h5 style="margin:0 0 0.25rem 0; color:#166534; font-size:1rem; font-weight:800;">
+                  🚀 3. ¿Todo listo? Publicar en la Página de Keystone Advisors Global
+                </h5>
+                <span style="font-size:0.78rem; color:#475569;">
+                  Destino: <strong>Keystone Advisors Global</strong> (ID 105863140) · Se emitirá inmediatamente a la red.
+                </span>
+              </div>
+              <button type="button" onclick="dispatchDirectPostToLinkedIn();" id="btnPublishDirectLi" style="background:#16a34a; color:#fff; border:none; padding:0.75rem 1.5rem; border-radius:6px; font-weight:800; font-size:0.95rem; cursor:pointer; display:flex; align-items:center; gap:0.5rem; box-shadow:0 4px 12px rgba(22,163,74,0.35);">
+                <span>📤</span> Publicar Ahora en LinkedIn Empresa
+              </button>
+            </div>
+
+            <div id="liDirectPublishStatus" style="display:none; margin-top:1rem;"></div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- MODAL 1: GENERADOR DE AVISOS & BANNERS IA (GEMINI 3.8 + FLUX.1) -->
       <div id="modalAiAdGenerator" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:9999; justify-content:center; align-items:center; padding:1.5rem; overflow-y:auto;">
         <div style="background:#ffffff; border-radius:12px; width:100%; max-width:850px; max-height:90vh; overflow-y:auto; padding:2rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); border:1px solid #cbd5e1;">
@@ -4045,6 +4192,167 @@ $scans_list = $db->query("
         function togglePresetGoals() {
           const b = document.getElementById("boxPresetGoals");
           b.style.display = b.style.display === "none" ? "flex" : "none";
+        }
+
+        
+        function openLinkedInDirectStudio() {
+          document.getElementById("modalLinkedInDirectStudio").style.display = "flex";
+          refreshLiUtmPreview();
+        }
+
+        function onLiThemeChanged(val) {
+          const goalInp = document.getElementById("li_goal");
+          const audInp = document.getElementById("li_audience");
+          const landSel = document.getElementById("li_landing_base");
+
+          if (val === "salesforce") {
+            goalInp.value = "Cómo modernizar el Core CRM bancario con Salesforce FSC y LWC sin fricciones operativas";
+            audInp.value = "Gerentes de TI, CIOs, Directores de Canales y Operaciones de Banca y Seguros";
+            landSel.value = "https://www.keystoneadvisors.cl/#contact";
+          } else if (val === "deepshield") {
+            goalInp.value = "Blindaje perimetral contra fraude BEC y suplantación de identidad bancaria bajo Ley 21.459";
+            audInp.value = "Gerentes de Finanzas, CFOs, Tesoreros y CISOs de Empresas";
+            landSel.value = "https://www.keystoneadvisors.cl/";
+          } else if (val === "cloud") {
+            goalInp.value = "Arquitectura Cloud moderna y Kubernetes resiliente para alta disponibilidad corporativa";
+            audInp.value = "CTOs, Gerentes de Infraestructura y Jefes de Operaciones TI";
+            landSel.value = "https://www.keystoneadvisors.cl/";
+          } else if (val === "sinnotario") {
+            goalInp.value = "Cómo cerrar contratos y acuerdos legales con Firma FEA sin trámites en notarías";
+            audInp.value = "Pymes, fundadores, corredores de propiedades y gerentes legales";
+            landSel.value = "https://sinnotario.cl/";
+          } else if (val === "keyhub") {
+            goalInp.value = "Control de rentabilidad en tiempo real y asignación de horas para consultoras";
+            audInp.value = "Socios de firmas de consultoría, directores de agencias y gerentes de proyectos";
+            landSel.value = "https://keyhub.keystoneadvisors.cl/";
+          }
+          refreshLiUtmPreview();
+        }
+
+        function refreshLiUtmPreview() {
+          const base = document.getElementById("li_landing_base").value;
+          const theme = document.getElementById("li_theme").value;
+          const campaignName = "linkedin_organic_" + theme + "_" + new Date().toISOString().slice(0,10).replace(/-/g, "");
+          const cleanBase = base.split("?")[0];
+          const utmUrl = cleanBase + "?utm_source=linkedin&utm_medium=social_organic&utm_campaign=" + encodeURIComponent(campaignName) + "&utm_content=post_empresa";
+          document.getElementById("li_built_utm_url").value = utmUrl;
+        }
+
+        async function generateLinkedInArticleDirect(e) {
+          e.preventDefault();
+          const btn = document.getElementById("btnLiGenArticle");
+          const orig = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = "✨ Redactando Artículo B2B con Groq LPU & FLUX.1... ⏳";
+
+          refreshLiUtmPreview();
+          const utmUrl = document.getElementById("li_built_utm_url").value;
+          const theme = document.getElementById("li_theme").value;
+          const tenantSlug = (theme === "sinnotario" || theme === "keyhub") ? theme : ("keystone_" + theme);
+
+          const fd = new FormData();
+          fd.append("action", "growth_generate_ai");
+          fd.append("tenant_id", tenantSlug);
+          fd.append("target_platform", "linkedin_company");
+          fd.append("campaign_goal", document.getElementById("li_goal").value);
+          fd.append("target_audience", document.getElementById("li_audience").value);
+          fd.append("generate_banner", document.getElementById("li_gen_banner").checked ? "1" : "0");
+          fd.append("visual_prompt", "Corporate B2B high-end LinkedIn banner for " + theme + ", blue navy #003366 and electric cyan accents");
+
+          try {
+            const res = await fetch("index.php", { method: "POST", body: fd });
+            const data = await res.json();
+
+            if (data.success && data.copy && data.copy.data) {
+              const cr = data.copy.data;
+              let postText = cr.linkedin_post || "";
+
+              // Incorporar el enlace UTM automáticamente al final si no lo tiene
+              if (postText && !postText.includes("http")) {
+                postText += "\n\n🔗 Conoce más o solicita diagnóstico aquí: " + utmUrl;
+              }
+
+              document.getElementById("li_editor_textarea").value = postText;
+              document.getElementById("liPostEditorSection").style.display = "block";
+
+              // Banner
+              if (data.banner && data.banner.success && data.banner.image_url) {
+                document.getElementById("liBannerPreviewImg").src = data.banner.image_url;
+                document.getElementById("liBannerPreviewLink").href = data.banner.image_url;
+                document.getElementById("liBannerPreviewBox").style.display = "block";
+                window._liDirectImagePath = data.banner.image_url;
+              } else {
+                document.getElementById("liBannerPreviewBox").style.display = "none";
+                window._liDirectImagePath = "";
+              }
+
+              document.getElementById("liPostEditorSection").scrollIntoView({ behavior: "smooth" });
+            } else {
+              alert("Error al generar artículo: " + (data.error || "Respuesta inválida"));
+            }
+          } catch (err) {
+            alert("Error de red: " + err.message);
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+          }
+        }
+
+        async function dispatchDirectPostToLinkedIn() {
+          const text = document.getElementById("li_editor_textarea").value.trim();
+          if (!text) {
+            alert("El texto del post no puede estar vacío.");
+            return;
+          }
+
+          const btn = document.getElementById("btnPublishDirectLi");
+          const statusBox = document.getElementById("liDirectPublishStatus");
+          const orig = btn.innerHTML;
+
+          btn.disabled = true;
+          btn.innerHTML = "Publicando en Keystone Advisors Global... ⏳";
+          statusBox.style.display = "none";
+
+          const fd = new FormData();
+          fd.append("action", "publish_to_linkedin");
+          fd.append("post_text", text);
+          fd.append("image_path", window._liDirectImagePath || "");
+          fd.append("post_title", "Keystone Advisors B2B Intelligence");
+          fd.append("landing_url", document.getElementById("li_built_utm_url").value);
+
+          try {
+            const res = await fetch("index.php", { method: "POST", body: fd });
+            const data = await res.json();
+
+            statusBox.style.display = "block";
+            if (data.success) {
+              statusBox.innerHTML = `
+                <div style="background:#dcfce7; border:1px solid #86efac; color:#166534; padding:1rem; border-radius:8px; font-weight:700;">
+                  <div style="font-size:1.05rem; margin-bottom:0.35rem;">🎉 ¡Artículo publicado exitosamente en LinkedIn Empresa!</div>
+                  <div style="font-size:0.82rem; font-weight:normal; color:#374151;">
+                    URN de Publicación: <code>${data.post_urn || "Confirmado"}</code>.
+                  </div>
+                  <div style="margin-top:0.75rem;">
+                    <a href="https://www.linkedin.com/company/keystoneadvisorsglobal/" target="_blank" style="background:#0a66c2; color:#fff; text-decoration:none; padding:0.4rem 0.85rem; border-radius:6px; font-size:0.82rem; font-weight:700; display:inline-block;">
+                      ↗ Ver en la Página Oficial de LinkedIn
+                    </a>
+                  </div>
+                </div>
+              `;
+            } else {
+              statusBox.innerHTML = `
+                <div style="background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:1rem; border-radius:8px;">
+                  <strong>❌ Error al publicar en LinkedIn:</strong> ${data.error || "No se pudo completar el despacho."}
+                </div>
+              `;
+            }
+          } catch (err) {
+            statusBox.style.display = "block";
+            statusBox.innerHTML = `<div style="background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:1rem; border-radius:8px;"><strong>Error de red:</strong> ${err.message}</div>`;
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+          }
         }
 
         async function generateAiAdCreatives(e) {
