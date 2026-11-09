@@ -8,7 +8,7 @@
 class KeystoneLinkedInPublisher {
 
     private static string $apiBase = 'https://api.linkedin.com/rest';
-    private static string $apiVersion = '202401'; // LinkedIn Rest-Version header
+    private static string $apiVersion = '202610'; // LinkedIn Rest-Version header
 
     /**
      * Obtener configuración almacenada en mkt_settings
@@ -175,6 +175,35 @@ class KeystoneLinkedInPublisher {
         $headerStr = substr($response, 0, $headerSize);
         $bodyStr = substr($response, $headerSize);
         curl_close($ch);
+
+        // Fallback si falta w_organization_social
+        if (($httpCode === 400 || $httpCode === 403) && $authorUrn !== $memberUrn && !empty($memberUrn)) {
+            $authorUrn = $memberUrn;
+            $postPayload['author'] = $authorUrn;
+            if (!empty($imageLocalPath) && file_exists($imageLocalPath) && empty($imageUrn)) {
+                $imageUrn = self::uploadImage($imageLocalPath, $authorUrn);
+                if ($imageUrn) {
+                    $postPayload['content']['media']['id'] = $imageUrn;
+                }
+            }
+            $ch = curl_init($postUrl);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $token,
+                'Content-Type: application/json',
+                'LinkedIn-Version: ' . self::$apiVersion,
+                'X-Restli-Protocol-Version: 2.0.0'
+            ]);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postPayload));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HEADER, true);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+            $headerStr = substr($response, 0, $headerSize);
+            $bodyStr = substr($response, $headerSize);
+            curl_close($ch);
+        }
 
         if ($httpCode === 201) {
             // LinkedIn devuelve el Post URN en la cabecera x-linkedin-id o x-restli-id
