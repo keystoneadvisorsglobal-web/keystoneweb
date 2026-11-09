@@ -695,6 +695,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // =========================================================================
 // ACCIONES KEYSTONE GROWTH ENGINE & IA GENERATOR (SOL-0172)
 // =========================================================================
+// Eliminar Banner de Creativos Históricos (SOL-0179)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_mkt_banner' && isset($_SESSION['admin_logged'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    require_once __DIR__ . '/../api/KeystoneGrowthService.php';
+    $db = KeystoneGrowthService::getDb();
+
+    $id = (int)($_POST['creative_id'] ?? 0);
+    if ($id > 0) {
+        // Obtener ruta del archivo para borrarlo del disco si existe
+        $stmt = $db->prepare("SELECT banner_image_path FROM mkt_ai_creatives WHERE id = ?");
+        $stmt->execute([$id]);
+        $path = $stmt->fetchColumn();
+
+        if ($path) {
+            $cleaned = ltrim($path, '/');
+            $fullPath = __DIR__ . '/../' . $cleaned;
+            if (file_exists($fullPath) && is_file($fullPath)) {
+                @unlink($fullPath);
+            }
+        }
+
+        // Eliminar registro de SQLite
+        $del = $db->prepare("DELETE FROM mkt_ai_creatives WHERE id = ?");
+        $del->execute([$id]);
+
+        echo json_encode(['success' => true, 'deleted_id' => $id]);
+    } else {
+        echo json_encode(['success' => false, 'error' => 'ID inválido']);
+    }
+    exit;
+}
+
 // Regenerar Banner Visual con Nuevas Instrucciones (SOL-0177)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'growth_regenerate_banner' && isset($_SESSION['admin_logged'])) {
     header('Content-Type: application/json; charset=utf-8');
@@ -3676,11 +3708,29 @@ $scans_list = $db->query("
           <h3 style="font-size:1.05rem; font-weight:800; color:#003366; margin:0 0 1rem 0;">🖼️ Banners Recientes Generados por Cloudflare FLUX.1</h3>
           <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:1rem;">
             <?php foreach ($recentCreatives as $c): ?>
-              <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:0.75rem; text-align:center;">
-                <img src="<?php echo htmlspecialchars($c['banner_image_path']); ?>" style="width:100%; height:180px; object-fit:cover; border-radius:6px; margin-bottom:0.5rem;" alt="Banner IA">
-                <div style="font-size:0.75rem; font-weight:700; color:#003366;"><?php echo htmlspecialchars($c['tenant_slug']); ?></div>
-                <div style="font-size:0.7rem; color:#64748b;"><?php echo htmlspecialchars($c['topic']); ?></div>
-                <a href="<?php echo htmlspecialchars($c['banner_image_path']); ?>" target="_blank" style="font-size:0.72rem; color:#0284c7; font-weight:700; text-decoration:none; display:inline-block; margin-top:0.35rem;">Ver / Descargar</a>
+              <div id="banner_card_<?php echo $c['id']; ?>" style="position:relative; background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:0.75rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.03); transition:transform 0.2s;">
+                <!-- Botón Eliminar Flotante -->
+                <button type="button" onclick="deleteMktBanner(<?php echo $c['id']; ?>);" title="Eliminar este banner" style="position:absolute; top:8px; right:8px; background:rgba(239,68,68,0.9); color:#fff; border:none; width:26px; height:26px; border-radius:50%; font-size:0.8rem; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,0.2);">
+                  &times;
+                </button>
+
+                <img src="<?php echo htmlspecialchars($c['banner_image_path']); ?>" style="width:100%; height:170px; object-fit:cover; border-radius:6px; margin-bottom:0.6rem; border:1px solid #e2e8f0;" alt="Banner IA">
+                <div style="font-size:0.75rem; font-weight:800; color:#003366;"><?php echo htmlspecialchars($c['tenant_slug']); ?></div>
+                <div style="font-size:0.7rem; color:#64748b; line-height:1.3; margin:0.25rem 0; min-height:2.6em; overflow:hidden;"><?php echo htmlspecialchars($c['topic']); ?></div>
+                
+                <div style="display:flex; justify-content:center; gap:0.5rem; align-items:center; margin-top:0.5rem; padding-top:0.4rem; border-top:1px solid #f1f5f9;">
+                  <a href="<?php echo htmlspecialchars($c['banner_image_path']); ?>" target="_blank" style="font-size:0.72rem; color:#0284c7; font-weight:700; text-decoration:none;">
+                    🔍 Ver
+                  </a>
+                  <span style="color:#cbd5e1;">•</span>
+                  <a href="<?php echo htmlspecialchars($c['banner_image_path']); ?>" download style="font-size:0.72rem; color:#059669; font-weight:700; text-decoration:none;">
+                    ⬇️ Descargar
+                  </a>
+                  <span style="color:#cbd5e1;">•</span>
+                  <button type="button" onclick="deleteMktBanner(<?php echo $c['id']; ?>);" style="background:none; border:none; padding:0; font-size:0.72rem; color:#dc2626; font-weight:700; cursor:pointer;">
+                    🗑️ Borrar
+                  </button>
+                </div>
               </div>
             <?php endforeach; ?>
           </div>
@@ -4559,6 +4609,49 @@ $scans_list = $db->query("
 
         
         
+        
+        async function deleteMktBanner(id) {
+          if (!confirm("¿Deseas eliminar este banner definitivamente? Se borrará la imagen del servidor y del historial.")) {
+            return;
+          }
+
+          const card = document.getElementById("banner_card_" + id);
+          if (card) {
+            card.style.opacity = "0.4";
+            card.style.pointerEvents = "none";
+          }
+
+          const fd = new FormData();
+          fd.append("action", "delete_mkt_banner");
+          fd.append("creative_id", id);
+
+          try {
+            const res = await fetch("index.php", { method: "POST", body: fd });
+            const data = await res.json();
+
+            if (data.success) {
+              if (card) {
+                card.style.transition = "all 0.3s ease";
+                card.style.transform = "scale(0.8)";
+                card.style.opacity = "0";
+                setTimeout(() => card.remove(), 300);
+              }
+            } else {
+              alert("Error al eliminar banner: " + (data.error || "Fallo en servidor"));
+              if (card) {
+                card.style.opacity = "1";
+                card.style.pointerEvents = "auto";
+              }
+            }
+          } catch(err) {
+            alert("Error de red: " + err.message);
+            if (card) {
+              card.style.opacity = "1";
+              card.style.pointerEvents = "auto";
+            }
+          }
+        }
+
         function toggleLiRegenBox() {
           const el = document.getElementById("liRegenControls");
           el.style.display = el.style.display === "none" ? "block" : "none";
