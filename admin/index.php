@@ -635,6 +635,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
+// =========================================================================
+// ENDPOINTS PLANIFICADOR DE CAMPAÑAS LINKEDIN (SOL-0176)
+// =========================================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'campaign_advise_cadence' && isset($_SESSION['admin_logged'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    require_once __DIR__ . '/../api/CampaignPlannerService.php';
+    $dStart = trim($_POST['date_start'] ?? date('Y-m-d'));
+    $dEnd = trim($_POST['date_end'] ?? date('Y-m-d', strtotime('+14 days')));
+    echo json_encode(CampaignPlannerService::adviseCampaignCadence($dStart, $dEnd));
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'campaign_generate_batch' && isset($_SESSION['admin_logged'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    require_once __DIR__ . '/../api/CampaignPlannerService.php';
+    $tenantSlug = trim($_POST['tenant_slug'] ?? 'keystone_deepshield');
+    $topic = trim($_POST['topic'] ?? 'Blindaje contra Fraude BEC');
+    $audience = trim($_POST['target_audience'] ?? 'Gerentes de Finanzas y CFOs');
+    $landingUrl = trim($_POST['landing_url'] ?? 'https://www.keystoneadvisors.cl/');
+    $campName = trim($_POST['campaign_name'] ?? ('camp_' . date('Ymd_His')));
+    $numPosts = (int)($_POST['num_posts'] ?? 4);
+    $schedDates = json_decode($_POST['scheduled_dates'] ?? '[]', true) ?: [];
+
+    echo json_encode(CampaignPlannerService::generateBatchArticles($tenantSlug, $topic, $audience, $landingUrl, $campName, $numPosts, $schedDates));
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'campaign_save_schedule' && isset($_SESSION['admin_logged'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    require_once __DIR__ . '/../api/CampaignPlannerService.php';
+    $payload = json_decode($_POST['payload'] ?? '{}', true);
+    echo json_encode(CampaignPlannerService::saveCampaignSchedule($payload));
+    exit;
+}
+
 // Publicar en LinkedIn Empresa Orgánico (SOL-0172)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'publish_to_linkedin' && isset($_SESSION['admin_logged'])) {
     header('Content-Type: application/json; charset=utf-8');
@@ -3406,6 +3441,9 @@ $scans_list = $db->query("
           </p>
         </div>
         <div style="display:flex; gap:0.65rem; flex-wrap:wrap;">
+          <button type="button" onclick="openCampaignPlannerModal();" style="background:linear-gradient(135deg, #059669 0%, #047857 100%); color:#ffffff; border:none; padding:0.65rem 1.25rem; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer; display:flex; align-items:center; gap:0.5rem; box-shadow:0 4px 14px rgba(5,150,105,0.35);">
+            <span style="font-size:1.1rem;">📅</span> Planificar Campaña Completa (Calendario & IA)
+          </button>
           <button type="button" onclick="openLinkedInDirectStudio();" style="background:linear-gradient(135deg, #0a66c2 0%, #004182 100%); color:#ffffff; border:none; padding:0.65rem 1.25rem; border-radius:8px; font-weight:800; font-size:0.88rem; cursor:pointer; display:flex; align-items:center; gap:0.5rem; box-shadow:0 4px 14px rgba(10,102,194,0.35);">
             <span style="font-size:1.1rem;">💼</span> Publicador Directo LinkedIn (Página Empresa)
           </button>
@@ -3636,6 +3674,122 @@ $scans_list = $db->query("
       <?php endif; ?>
 
       
+      
+      <!-- MODAL PLANIFICADOR INTEGRAL DE CAMPAÑAS CON IA (SOL-0176) -->
+      <div id="modalCampaignPlanner" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.85); z-index:9999; justify-content:center; align-items:center; padding:1.5rem; overflow-y:auto;">
+        <div style="background:#ffffff; border-radius:14px; width:100%; max-width:980px; max-height:92vh; overflow-y:auto; padding:2.25rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35); border:1px solid #cbd5e1;">
+          
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; border-bottom:1px solid #e2e8f0; padding-bottom:1rem;">
+            <div>
+              <div style="display:flex; align-items:center; gap:0.6rem;">
+                <span style="font-size:1.8rem;">📅</span>
+                <h3 style="font-size:1.35rem; font-weight:800; color:#003366; margin:0;">
+                  Planificador & Asesor Estratégico de Campañas (LinkedIn Empresa)
+                </h3>
+              </div>
+              <p style="font-size:0.84rem; color:#64748b; margin:0.35rem 0 0 0;">
+                Define el rango de fechas de tu campaña. La IA calculará el número óptimo de posts B2B, redactará el lote editorial completo con sus UTMs y programará el despacho automático.
+              </p>
+            </div>
+            <button onclick="document.getElementById('modalCampaignPlanner').style.display='none';" style="background:none; border:none; font-size:1.6rem; cursor:pointer; color:#64748b;">&times;</button>
+          </div>
+
+          <!-- PASO 1: Configuración de Fechas y Asesoría de Cadencia -->
+          <form id="formCampaignPlanner" onsubmit="executeBatchCampaignGeneration(event);">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
+              <h4 style="font-size:0.95rem; font-weight:800; color:#0f172a; margin:0 0 1rem 0;">
+                1️⃣ Período de Campaña & Parámetros Estratégicos
+              </h4>
+              
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                <div>
+                  <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Fecha Inicio *</label>
+                  <input type="date" id="cp_date_start" value="2026-11-09" onchange="checkCadenceAdvice();" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                </div>
+                <div>
+                  <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Fecha Término *</label>
+                  <input type="date" id="cp_date_end" value="2026-11-23" onchange="checkCadenceAdvice();" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                </div>
+                <div>
+                  <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Línea de Negocio / Producto *</label>
+                  <select id="cp_tenant" onchange="onCpTenantChanged(this.value);" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; font-weight:600;">
+                    <option value="keystone_deepshield" selected>DeepShield · Tesorería & Prevención Fraude BEC</option>
+                    <option value="keystone_salesforce">Salesforce · FSC, Core CRM & Banca</option>
+                    <option value="keystone_cloud">Cloud · Arquitectura & Kubernetes Resiliente</option>
+                    <option value="sinnotario">SinNotario · Trámites & Firma Electrónica FEA</option>
+                    <option value="keyhub">KeyHub · Control de Rentabilidad & Horas</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Caja de Asesoría de Cadencia en Vivo -->
+              <div id="boxCadenceAdvice" style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:0.85rem 1rem; display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+                <div>
+                  <div style="font-size:0.82rem; font-weight:800; color:#065f46;">
+                    💡 Asesoría del Algoritmo Editorial LinkedIn B2B:
+                  </div>
+                  <div id="txtCadenceRationale" style="font-size:0.78rem; color:#047857; margin-top:0.2rem;">
+                    Para este período de 15 días, se recomienda una cadencia de <strong>6 publicaciones</strong> (2 a 3 semanales) en días hábiles (Martes a Jueves a las 09:00 AM) para maximizar la visibilidad sin canibalizar el alcance.
+                  </div>
+                </div>
+                <div style="text-align:right; min-width:140px;">
+                  <span style="font-size:0.72rem; color:#475569; display:block;">N° Posts Recomendados:</span>
+                  <input type="number" id="cp_num_posts" min="1" max="20" value="6" style="width:75px; text-align:center; font-size:1.1rem; font-weight:800; color:#065f46; border:2px solid #059669; border-radius:6px; padding:0.25rem;">
+                </div>
+              </div>
+
+              <!-- Fila 2: Objetivo, Audiencia y Landing -->
+              <div style="display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:1rem; margin-top:1rem;">
+                <div>
+                  <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Tema Central de la Campaña *</label>
+                  <input type="text" id="cp_topic" value="Blindaje perimetral contra fraude BEC en transferencias bancarias y cumplimiento Ley 21.459" required style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                </div>
+                <div>
+                  <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Público Objetivo (Buyer Persona) *</label>
+                  <input type="text" id="cp_audience" value="Gerentes de Finanzas, CFOs, Tesoreros y CISOs" required style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                </div>
+                <div>
+                  <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Landing Page de Destino *</label>
+                  <select id="cp_landing" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                    <option value="https://www.keystoneadvisors.cl/">Keystone (Home / Diagnóstico)</option>
+                    <option value="https://www.keystoneadvisors.cl/#contact">Keystone (Contacto / Reunión)</option>
+                    <option value="https://sinnotario.cl/">SinNotario.cl (Trámites)</option>
+                    <option value="https://keyhub.keystoneadvisors.cl/">KeyHub (SaaS)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" id="btnGenBatchCamp" style="width:100%; background:linear-gradient(135deg, #059669 0%, #047857 100%); color:#ffffff; border:none; padding:0.9rem; border-radius:8px; font-weight:800; font-size:0.98rem; cursor:pointer; box-shadow:0 4px 14px rgba(5,150,105,0.3);">
+              ⚡ 2. Generar Lote de Artículos & Calendario con IA Ahora
+            </button>
+          </form>
+
+          <!-- PASO 2: Parrilla / Calendario de Publicaciones Generadas -->
+          <div id="cpBatchResultsContainer" style="display:none; margin-top:2rem; border-top:2px solid #e2e8f0; padding-top:1.5rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+              <div>
+                <h4 style="font-size:1.15rem; font-weight:800; color:#003366; margin:0;">
+                  📅 3. Parrilla Editorial & Calendario Programado
+                </h4>
+                <p style="font-size:0.8rem; color:#64748b; margin:0.25rem 0 0 0;">
+                  Revisa cada publicación del lote. Cada una tiene su propio ángulo complementario y enlace UTM de medición independiente.
+                </p>
+              </div>
+              <button type="button" onclick="confirmAndScheduleCampaign();" id="btnSaveCampSchedule" style="background:#16a34a; color:#fff; border:none; padding:0.75rem 1.5rem; border-radius:8px; font-weight:800; font-size:0.92rem; cursor:pointer; box-shadow:0 4px 12px rgba(22,163,74,0.35);">
+                💾 Guardar & Activar Calendario de Publicaciones
+              </button>
+            </div>
+
+            <!-- Listado de Posts Acordeón/Cards -->
+            <div id="cpPostsList" style="display:flex; flex-direction:column; gap:1.25rem;"></div>
+
+            <div id="cpScheduleSaveStatus" style="display:none; margin-top:1.5rem;"></div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- MODAL DEDICADO: LINKEDIN PUBLISHING STUDIO (SOL-0175) -->
       <div id="modalLinkedInDirectStudio" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.8); z-index:9999; justify-content:center; align-items:center; padding:1.5rem; overflow-y:auto;">
         <div style="background:#ffffff; border-radius:14px; width:100%; max-width:920px; max-height:92vh; overflow-y:auto; padding:2.25rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35); border:1px solid #cbd5e1;">
@@ -4350,6 +4504,199 @@ $scans_list = $db->query("
               `;
             }
           } catch (err) {
+            statusBox.style.display = "block";
+            statusBox.innerHTML = `<div style="background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:1rem; border-radius:8px;"><strong>Error de red:</strong> ${err.message}</div>`;
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+          }
+        }
+
+        
+        let _cpCurrentBatch = null;
+
+        function openCampaignPlannerModal() {
+          document.getElementById("modalCampaignPlanner").style.display = "flex";
+          checkCadenceAdvice();
+        }
+
+        async function checkCadenceAdvice() {
+          const dStart = document.getElementById("cp_date_start").value;
+          const dEnd = document.getElementById("cp_date_end").value;
+          if (!dStart || !dEnd) return;
+
+          const fd = new FormData();
+          fd.append("action", "campaign_advise_cadence");
+          fd.append("date_start", dStart);
+          fd.append("date_end", dEnd);
+
+          try {
+            const res = await fetch("index.php", { method: "POST", body: fd });
+            const data = await res.json();
+            if (data.recommended_posts) {
+              document.getElementById("cp_num_posts").value = data.recommended_posts;
+              document.getElementById("txtCadenceRationale").innerHTML = 
+                `Período de <strong>${data.days_total} días</strong> (${data.weeks_approx} semanas): ${data.cadence_rationale}`;
+              window._cpSuggestedDates = data.suggested_dates;
+            }
+          } catch(e) { console.error(e); }
+        }
+
+        function onCpTenantChanged(val) {
+          const topInp = document.getElementById("cp_topic");
+          const audInp = document.getElementById("cp_audience");
+          const landInp = document.getElementById("cp_landing");
+
+          if (val === "keystone_deepshield") {
+            topInp.value = "Blindaje perimetral contra fraude BEC en transferencias bancarias y cumplimiento Ley 21.459";
+            audInp.value = "Gerentes de Finanzas, CFOs, Tesoreros y CISOs";
+            landInp.value = "https://www.keystoneadvisors.cl/";
+          } else if (val === "keystone_salesforce") {
+            topInp.value = "Implementación y modernización de Salesforce Financial Services Cloud (FSC) para Banca";
+            audInp.value = "CIOs, Gerentes de TI y Directores de Canales Digitales";
+            landInp.value = "https://www.keystoneadvisors.cl/#contact";
+          } else if (val === "keystone_cloud") {
+            topInp.value = "Arquitectura Cloud moderna, microservicios y alta disponibilidad resiliente";
+            audInp.value = "CTOs, Gerentes de Infraestructura y Operaciones";
+            landInp.value = "https://www.keystoneadvisors.cl/";
+          } else if (val === "sinnotario") {
+            topInp.value = "Firma electrónica avanzada de contratos y trámites con validez legal inmediata";
+            audInp.value = "Pymes, fundadores, corredores de propiedades y jefaturas legales";
+            landInp.value = "https://sinnotario.cl/";
+          } else if (val === "keyhub") {
+            topInp.value = "Control de rentabilidad en tiempo real y asignación de horas de consultoría";
+            audInp.value = "Socios directores de firmas profesionales y gerentes de proyectos";
+            landInp.value = "https://keyhub.keystoneadvisors.cl/";
+          }
+        }
+
+        async function executeBatchCampaignGeneration(e) {
+          e.preventDefault();
+          const btn = document.getElementById("btnGenBatchCamp");
+          const orig = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = "✨ Redactando Lote de Artículos & Asignando UTMs con Groq LPU... ⏳";
+
+          const tenantSlug = document.getElementById("cp_tenant").value;
+          const topic = document.getElementById("cp_topic").value;
+          const audience = document.getElementById("cp_audience").value;
+          const landing = document.getElementById("cp_landing").value;
+          const numPosts = document.getElementById("cp_num_posts").value;
+          const campName = "camp_" + tenantSlug.replace("keystone_", "") + "_" + new Date().toISOString().slice(0,10).replace(/-/g, "");
+
+          const fd = new FormData();
+          fd.append("action", "campaign_generate_batch");
+          fd.append("tenant_slug", tenantSlug);
+          fd.append("topic", topic);
+          fd.append("target_audience", audience);
+          fd.append("landing_url", landing);
+          fd.append("campaign_name", campName);
+          fd.append("num_posts", numPosts);
+          fd.append("scheduled_dates", JSON.stringify(window._cpSuggestedDates || []));
+
+          try {
+            const res = await fetch("index.php", { method: "POST", body: fd });
+            const data = await res.json();
+
+            if (data.success && data.items) {
+              _cpCurrentBatch = {
+                campaign_name: campName,
+                campaign_title: topic,
+                tenant_slug: tenantSlug,
+                topic: topic,
+                target_audience: audience,
+                landing_url: landing,
+                date_start: document.getElementById("cp_date_start").value,
+                date_end: document.getElementById("cp_date_end").value,
+                posts: data.items
+              };
+
+              renderBatchCards(data.items);
+              document.getElementById("cpBatchResultsContainer").style.display = "block";
+              document.getElementById("cpBatchResultsContainer").scrollIntoView({ behavior: "smooth" });
+            } else {
+              alert("Error al generar campaña: " + (data.error || "Fallo en motor de IA"));
+            }
+          } catch(err) {
+            alert("Error de conexión: " + err.message);
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+          }
+        }
+
+        function renderBatchCards(items) {
+          const list = document.getElementById("cpPostsList");
+          let html = "";
+
+          items.forEach((item, idx) => {
+            html += `
+              <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:1.25rem; box-shadow:0 2px 4px rgba(0,0,0,0.03);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:1px solid #f1f5f9; padding-bottom:0.5rem; flex-wrap:wrap; gap:0.5rem;">
+                  <div style="display:flex; align-items:center; gap:0.6rem;">
+                    <span style="background:#003366; color:#fff; font-weight:800; font-size:0.78rem; padding:0.25rem 0.6rem; border-radius:99px;">
+                      Post #${item.post_index}
+                    </span>
+                    <strong style="color:#0f172a; font-size:0.95rem;">${item.post_title}</strong>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <span style="font-size:0.75rem; color:#64748b; font-weight:600;">Fecha Programada:</span>
+                    <input type="datetime-local" value="${item.scheduled_at.replace(" ", "T")}" onchange="_cpCurrentBatch.posts[${idx}].scheduled_at = this.value.replace('T', ' ') + ':00';" style="padding:0.35rem 0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem;">
+                  </div>
+                </div>
+
+                <div style="margin-bottom:0.75rem;">
+                  <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Texto del Post (LinkedIn B2B):</label>
+                  <textarea rows="5" onchange="_cpCurrentBatch.posts[${idx}].post_text = this.value;" style="width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; line-height:1.45; color:#1e293b; background:#f8fafc;">${item.post_text}</textarea>
+                </div>
+
+                <div style="background:#f1f5f9; border-radius:6px; padding:0.6rem 0.85rem; font-size:0.75rem; display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+                  <span style="color:#475569; font-weight:600;">🔗 UTM asignada:</span>
+                  <code style="color:#0369a1; word-break:break-all;">${item.utm_url}</code>
+                </div>
+              </div>
+            `;
+          });
+
+          list.innerHTML = html;
+        }
+
+        async function confirmAndScheduleCampaign() {
+          if (!_cpCurrentBatch || !_cpCurrentBatch.posts) {
+            alert("No hay campaña activa para guardar.");
+            return;
+          }
+
+          const btn = document.getElementById("btnSaveCampSchedule");
+          const statusBox = document.getElementById("cpScheduleSaveStatus");
+          const orig = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = "Guardando Calendario en SQLite... ⏳";
+          statusBox.style.display = "none";
+
+          const fd = new FormData();
+          fd.append("action", "campaign_save_schedule");
+          fd.append("payload", JSON.stringify(_cpCurrentBatch));
+
+          try {
+            const res = await fetch("index.php", { method: "POST", body: fd });
+            const data = await res.json();
+
+            statusBox.style.display = "block";
+            if (data.success) {
+              statusBox.innerHTML = `
+                <div style="background:#dcfce7; border:1px solid #86efac; color:#166534; padding:1.25rem; border-radius:8px; font-weight:700;">
+                  <div style="font-size:1.1rem; margin-bottom:0.35rem;">🎉 ¡Campaña y Calendario Programados Exitosamente!</div>
+                  <div style="font-size:0.85rem; font-weight:normal; color:#374151;">
+                    Se guardaron <strong>${data.scheduled_posts} publicaciones</strong> en la cola desatendida para la campaña <code>${data.campaign_name}</code>.<br>
+                    El despachador automático (`cron/dispatch_scheduled_campaigns.php`) las publicará en la Página de Keystone Advisors Global a medida que llegue la fecha estipulada.
+                  </div>
+                </div>
+              `;
+            } else {
+              statusBox.innerHTML = `<div style="background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:1rem; border-radius:8px;"><strong>Error:</strong> ${data.error}</div>`;
+            }
+          } catch(err) {
             statusBox.style.display = "block";
             statusBox.innerHTML = `<div style="background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:1rem; border-radius:8px;"><strong>Error de red:</strong> ${err.message}</div>`;
           } finally {
