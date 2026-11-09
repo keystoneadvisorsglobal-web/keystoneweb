@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+
+  <!-- 1. Página Principal (Home) -->
+  <url>
+    <loc>https://www.keystoneadvisors.cl/</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- 2. Escáner de Ciberseguridad & Diagnóstico DMARC Gratuito -->
+  <url>
+    <loc>https://www.keystoneadvisors.cl/#escaner</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- 3. KeyHub Suite (SaaS para Gestión de Horas, Contratos & Kanban) -->
+  <url>
+    <loc>https://www.keystoneadvisors.cl/#keyhub</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- 4. Portal Trust Center (Seguridad, Cifrado & Telemetría Pública) -->
+  <url>
+    <loc>https://www.keystoneadvisors.cl/trust/</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- 5. Servicios de Ciberseguridad IA, Salesforce CRM & Cloud -->
+  <url>
+    <loc>https://www.keystoneadvisors.cl/#servicios</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- 6. Planes Comerciales B2B & Licenciamiento -->
+  <url>
+    <loc>https://www.keystoneadvisors.cl/#productos</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+  <!-- 7. Canal de Contacto & Solicitud de Propuestas -->
+  <url>
+    <loc>https://www.keystoneadvisors.cl/#contacto</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+</urlset>

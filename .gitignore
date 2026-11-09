@@ -1,0 +1,28 @@
+# Base de datos y SQLite WAL
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+data/*.sqlite*
+
+# WordPress Core y Cache (mantener portal corporativo Keystone limpio)
+agentforce/
+wp-*.php
+license.txt
+readme.html
+.lscache_purge
+.htaccess.bk
+index_wordpress_backup.php
+
+# macOS & Archivos temporales
+._*
+.DS_Store
+*.log
+*.tmp
+*.bak
+.private/
+
+# Assets autogenerados
+assets/creatives/*.jpg
+assets/creatives/*.png
+!assets/creatives/.gitkeep
+xmlrpc.php
