@@ -1373,6 +1373,10 @@ $scans_list = $db->query("
       <a href="index.php?tab=dmarc" class="nav-tab-item <?php echo $tab === "dmarc" ? "active" : ""; ?>">📡 DMARC Watchdog</a>
     <?php endif; ?>
 
+    <?php if (canAccessTab("redteaming", $current_admin_role, $rbac_allowed_tabs)): ?>
+      <a href="index.php?tab=redteaming" class="nav-tab-item <?php echo $tab === "redteaming" ? "active" : ""; ?>">🎭 Red Teaming IA</a>
+    <?php endif; ?>
+
     <?php if (canAccessTab("marketing", $current_admin_role, $rbac_allowed_tabs)): ?>
       <a href="index.php?tab=marketing" class="nav-tab-item <?php echo $tab === "marketing" ? "active" : ""; ?>">📈 Growth & Marketing IA</a>
     <?php endif; ?>
@@ -3466,6 +3470,251 @@ $scans_list = $db->query("
           </form>
         </div>
       </div>
+
+    <?php elseif ($tab === 'redteaming'): ?>
+      <?php
+      require_once __DIR__ . '/../api/RedTeamingService.php';
+      $rtService = new RedTeamingService($db);
+      $campaigns = $rtService->listCampaigns();
+
+      // Consultar simulaciones públicas recientes (Leads)
+      $simsStmt = $db->query("SELECT * FROM redteam_simulations ORDER BY created_at DESC LIMIT 20");
+      $publicSims = $simsStmt ? $simsStmt->fetchAll(PDO::FETCH_ASSOC) : [];
+      $capturedLeadsCount = (int)$db->query("SELECT COUNT(*) FROM redteam_simulations WHERE status = 'LEAD_CAPTURED'")->fetchColumn();
+      ?>
+
+      <!-- Header de la Suite Red Teaming -->
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:1.75rem; margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <div>
+          <div style="display:inline-flex; align-items:center; gap:0.5rem; background:#eff6ff; border:1px solid #bfdbfe; padding:0.25rem 0.65rem; border-radius:9999px; font-size:0.75rem; font-weight:800; color:#1d4ed8; text-transform:uppercase; margin-bottom:0.4rem;">
+            <span>🎭 Suite de Ciberseguridad Ofensiva</span>
+          </div>
+          <h2 style="font-size:1.5rem; font-weight:800; color:#003366; margin:0;">Red Teaming & Simulaciones Asistidas por IA</h2>
+          <p style="color:#64748b; font-size:0.88rem; margin-top:0.25rem; max-width:750px;">
+            Plataforma B2B para gestionar simulaciones de ingeniería social contextual (BEC, Vishing y cambio de cuentas) y planes de entrenamiento corporativo para empresas clientes.
+          </p>
+        </div>
+
+        <button onclick="document.getElementById('modalNewRtCampaign').style.display='flex';" class="btn" style="background:#0284c7; color:#fff; border:none; padding:0.65rem 1.25rem; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.5rem; box-shadow:0 4px 12px rgba(2,132,199,0.25);">
+          + Nueva Campaña Corporativa B2B
+        </button>
+      </div>
+
+      <!-- Cuadrícula de Métricas de Red Teaming -->
+      <div class="metrics-grid" style="margin-bottom:1.75rem;">
+        <div class="metric-card">
+          <div class="metric-title">Campañas Activas / Planificadas</div>
+          <div class="metric-value" style="color:#0284c7;"><?php echo count($campaigns); ?></div>
+          <div class="metric-desc">Programas de entrenamiento en ejecución</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-title">Simulaciones Demo en Web</div>
+          <div class="metric-value" style="color:#10b981;"><?php echo count($publicSims); ?></div>
+          <div class="metric-desc">Ejecutadas por prospectos en landing</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-title">Leads Calificados Capturados</div>
+          <div class="metric-value" style="color:#f59e0b;"><?php echo $capturedLeadsCount; ?></div>
+          <div class="metric-desc">Prospectos pidiendo plan corporativo</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-title">Motor LLM de Generación</div>
+          <div class="metric-value" style="font-size:1.15rem; color:#0f172a; font-family:monospace; margin-top:0.4rem;">LLaMA 3.1 8B</div>
+          <div class="metric-desc">Cloudflare Workers AI (Latencia &lt; 800ms)</div>
+        </div>
+      </div>
+
+      <!-- Tabla 1: Campañas Corporativas B2B Pagadas -->
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:1.5rem; margin-bottom:2rem;">
+        <h3 style="font-size:1.1rem; font-weight:800; color:#003366; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+          <span>💼 Campañas de Red Teaming Contratadas</span>
+        </h3>
+
+        <?php if (empty($campaigns)): ?>
+          <div style="padding:2rem; text-align:center; color:#94a3b8; font-size:0.9rem;">
+            No hay campañas corporativas registradas aún. Haga clic en "+ Nueva Campaña Corporativa B2B" para crear la primera.
+          </div>
+        <?php else: ?>
+          <div style="overflow-x:auto;">
+            <table class="data-table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+              <thead>
+                <tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0; text-align:left; color:#64748b; font-size:0.75rem; text-transform:uppercase;">
+                  <th style="padding:0.75rem;">Empresa & Contacto</th>
+                  <th style="padding:0.75rem;">Plan Contratado</th>
+                  <th style="padding:0.75rem;">Dominios / Alcance</th>
+                  <th style="padding:0.75rem;">Vectores Simulados</th>
+                  <th style="padding:0.75rem; text-align:center;">Estado</th>
+                  <th style="padding:0.75rem; text-align:center;">Gestión</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($campaigns as $camp): ?>
+                  <tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:0.75rem;">
+                      <strong style="color:#0f172a; font-size:0.92rem;"><?php echo htmlspecialchars($camp['company_name']); ?></strong><br>
+                      <span style="color:#64748b; font-size:0.75rem;">👤 <?php echo htmlspecialchars($camp['contact_name']); ?> (<?php echo htmlspecialchars($camp['contact_email']); ?>)</span>
+                    </td>
+                    <td style="padding:0.75rem;">
+                      <span style="background:#e0f2fe; color:#0369a1; padding:0.2rem 0.5rem; border-radius:4px; font-weight:800; font-size:0.75rem;">
+                        <?php echo htmlspecialchars($camp['plan_type']); ?>
+                      </span>
+                    </td>
+                    <td style="padding:0.75rem; color:#475569;">
+                      <code>@<?php echo htmlspecialchars($camp['target_domains']); ?></code><br>
+                      <span style="font-size:0.72rem; color:#64748b;">(<?php echo (int)$camp['target_users_count']; ?> colaboradores evaluados)</span>
+                    </td>
+                    <td style="padding:0.75rem; font-size:0.78rem; color:#0f172a;">
+                      <?php echo htmlspecialchars(str_replace(',', ' • ', $camp['simulated_vectors'])); ?>
+                    </td>
+                    <td style="padding:0.75rem; text-align:center;">
+                      <?php if ($camp['status'] === 'ACTIVE'): ?>
+                        <span style="background:#dcfce7; color:#15803d; padding:0.15rem 0.5rem; border-radius:9999px; font-weight:800; font-size:0.7rem;">● EN EJECUCIÓN</span>
+                      <?php elseif ($camp['status'] === 'COMPLETED'): ?>
+                        <span style="background:#e0e7ff; color:#3730a3; padding:0.15rem 0.5rem; border-radius:9999px; font-weight:800; font-size:0.7rem;">✓ CULMINADA</span>
+                      <?php else: ?>
+                        <span style="background:#fef3c7; color:#b45309; padding:0.15rem 0.5rem; border-radius:9999px; font-weight:800; font-size:0.7rem;">⏳ PLANIFICACIÓN</span>
+                      <?php endif; ?>
+                    </td>
+                    <td style="padding:0.75rem; text-align:center;">
+                      <form method="POST" style="display:inline-flex; gap:0.3rem;">
+                        <input type="hidden" name="action" value="update_redteam_status">
+                        <input type="hidden" name="campaign_id" value="<?php echo $camp['id']; ?>">
+                        <select name="status" onchange="this.form.submit()" style="padding:0.25rem 0.45rem; font-size:0.75rem; border:1px solid #cbd5e1; border-radius:4px;">
+                          <option value="PLANNING" <?php echo $camp['status'] === 'PLANNING' ? 'selected' : ''; ?>>Planificación</option>
+                          <option value="ACTIVE" <?php echo $camp['status'] === 'ACTIVE' ? 'selected' : ''; ?>>Activar</option>
+                          <option value="COMPLETED" <?php echo $camp['status'] === 'COMPLETED' ? 'selected' : ''; ?>>Completar</option>
+                          <option value="CANCELLED" <?php echo $camp['status'] === 'CANCELLED' ? 'selected' : ''; ?>>Cancelar</option>
+                        </select>
+                      </form>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php endif; ?>
+      </div>
+
+      <!-- Tabla 2: Demostraciones Públicas Ejecutadas en Landing (Leads) -->
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:1.5rem;">
+        <h3 style="font-size:1.1rem; font-weight:800; color:#003366; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+          <span>🎯 Prospectos que Ejecutaron el Simulador Web (Lead Magnet)</span>
+        </h3>
+
+        <?php if (empty($publicSims)): ?>
+          <div style="padding:2rem; text-align:center; color:#94a3b8; font-size:0.9rem;">
+            Aún no se registran simulaciones públicas desde la landing.
+          </div>
+        <?php else: ?>
+          <div style="overflow-x:auto;">
+            <table class="data-table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+              <thead>
+                <tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0; text-align:left; color:#64748b; font-size:0.75rem; text-transform:uppercase;">
+                  <th style="padding:0.75rem;">Fecha & IP</th>
+                  <th style="padding:0.75rem;">Empresa Simulada</th>
+                  <th style="padding:0.75rem;">Industria</th>
+                  <th style="padding:0.75rem;">Vector de Ataque</th>
+                  <th style="padding:0.75rem;">Contacto de Lead</th>
+                  <th style="padding:0.75rem; text-align:center;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($publicSims as $ps): ?>
+                  <tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:0.75rem; font-size:0.75rem; color:#64748b;">
+                      <?php echo substr($ps['created_at'], 0, 16); ?><br>
+                      <code><?php echo htmlspecialchars($ps['ip_address'] ?? ''); ?></code>
+                    </td>
+                    <td style="padding:0.75rem;">
+                      <strong style="color:#0f172a;"><?php echo htmlspecialchars($ps['company_name']); ?></strong>
+                    </td>
+                    <td style="padding:0.75rem; color:#475569;">
+                      <?php echo htmlspecialchars($ps['industry']); ?>
+                    </td>
+                    <td style="padding:0.75rem; font-size:0.78rem; color:#0284c7; font-weight:bold;">
+                      <?php echo htmlspecialchars($ps['attack_vector']); ?>
+                    </td>
+                    <td style="padding:0.75rem;">
+                      <?php if (!empty($ps['lead_email'])): ?>
+                        <strong style="color:#15803d;">✉️ <?php echo htmlspecialchars($ps['lead_email']); ?></strong>
+                      <?php else: ?>
+                        <span style="color:#94a3b8; font-size:0.75rem;">Solo probó el simulador</span>
+                      <?php endif; ?>
+                    </td>
+                    <td style="padding:0.75rem; text-align:center;">
+                      <?php if ($ps['status'] === 'LEAD_CAPTURED'): ?>
+                        <span style="background:#dcfce7; color:#15803d; padding:0.15rem 0.5rem; border-radius:9999px; font-weight:800; font-size:0.7rem;">🎯 LEAD CALIFICADO</span>
+                      <?php else: ?>
+                        <span style="background:#f1f5f9; color:#64748b; padding:0.15rem 0.5rem; border-radius:9999px; font-weight:700; font-size:0.7rem;">SIMULADO</span>
+                      <?php endif; ?>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php endif; ?>
+      </div>
+
+      <!-- Modal Crear Nueva Campaña Red Teaming -->
+      <div id="modalNewRtCampaign" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.7); z-index:9999; justify-content:center; align-items:center; padding:1rem; backdrop-filter:blur(3px);">
+        <div style="background:#fff; border-radius:12px; width:100%; max-width:540px; padding:1.75rem; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.75rem;">
+            <h3 style="font-size:1.15rem; font-weight:800; color:#003366; margin:0;">💼 Alta de Campaña Red Teaming B2B</h3>
+            <button onclick="document.getElementById('modalNewRtCampaign').style.display='none';" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+          </div>
+
+          <form method="POST">
+            <input type="hidden" name="action" value="create_redteam_campaign">
+            
+            <div style="margin-bottom:1rem;">
+              <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Razón Social / Empresa Cliente *</label>
+              <input type="text" name="company_name" required placeholder="Ej: Inversiones del Sur SpA" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+              <div>
+                <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Contacto / Patrocinador *</label>
+                <input type="text" name="contact_name" required placeholder="Ej: Carlos Silva (CISO)" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+              </div>
+              <div>
+                <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Correo Oficial *</label>
+                <input type="email" name="contact_email" required placeholder="csilva@empresa.cl" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+              <div>
+                <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Dominio Objetivo *</label>
+                <input type="text" name="target_domains" required placeholder="empresa.cl" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+              </div>
+              <div>
+                <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Plan Contratado</label>
+                <select name="plan_type" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+                  <option value="STARTER">Starter (USD $1.200)</option>
+                  <option value="PROFESSIONAL" selected>Professional (USD $2.500)</option>
+                  <option value="ENTERPRISE">Enterprise (USD $4.800)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="margin-bottom:1.5rem;">
+              <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Vectores a Simular</label>
+              <input type="text" name="simulated_vectors" value="BEC,INVOICE_FRAUD,VISHING" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+              <small style="color:#64748b; font-size:0.72rem;">Separados por coma: BEC, INVOICE_FRAUD, VISHING, PASSKEY_BYPASS</small>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+              <button type="button" onclick="document.getElementById('modalNewRtCampaign').style.display='none';" style="background:#e2e8f0; color:#475569; border:none; padding:0.6rem 1.25rem; border-radius:6px; font-weight:700; font-size:0.85rem; cursor:pointer;">Cancelar</button>
+              <button type="submit" style="background:#0284c7; color:#fff; border:none; padding:0.6rem 1.25rem; border-radius:6px; font-weight:700; font-size:0.85rem; cursor:pointer;">Habilitar Campaña ➜</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
 
     <?php elseif ($tab === 'marketing'): ?>
       <?php
