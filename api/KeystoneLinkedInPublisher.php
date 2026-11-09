@@ -1,14 +1,14 @@
 <?php
 /**
- * Keystone Advisors - LinkedIn Community Management & Organic Publisher
- * Publicación oficial y automatizada de artículos, banners y posts B2B en la Página de Empresa.
- * API v2: /rest/posts y /rest/images
+ * Keystone Advisors - KeystoneLinkedInPublisher
+ * Integración oficial con LinkedIn Community Management & Rest API
+ * Compatible con versión RestLi 202610
  */
 
 class KeystoneLinkedInPublisher {
 
     private static string $apiBase = 'https://api.linkedin.com/rest';
-    private static string $apiVersion = '202610'; // LinkedIn Rest-Version header
+    private static string $apiVersion = '202610'; // LinkedIn Rest-Version activa
 
     /**
      * Obtener configuración almacenada en mkt_settings
@@ -23,6 +23,7 @@ class KeystoneLinkedInPublisher {
             'linkedin_access_token',
             'linkedin_org_id',
             'linkedin_org_urn',
+            'linkedin_member_urn',
             'linkedin_token_expires_at'
         ];
 
@@ -37,14 +38,43 @@ class KeystoneLinkedInPublisher {
     }
 
     /**
+     * Obtener URN de Miembro (persona) a través de userinfo
+     */
+    public static function getMemberUrn(string $token): ?string {
+        require_once __DIR__ . '/KeystoneGrowthService.php';
+        $db = KeystoneGrowthService::getDb();
+        $stored = $db->query("SELECT setting_value FROM mkt_settings WHERE setting_key = 'linkedin_member_urn'")->fetchColumn();
+        if (!empty($stored)) {
+            return $stored;
+        }
+
+        $ch = curl_init("https://api.linkedin.com/v2/userinfo");
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer " . $token]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $res = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($code === 200 && !empty($res)) {
+            $json = json_decode($res, true);
+            if (!empty($json['sub'])) {
+                $memberUrn = "urn:li:person:" . $json['sub'];
+                $stmt = $db->prepare("INSERT OR REPLACE INTO mkt_settings (setting_key, setting_value, updated_at) VALUES ('linkedin_member_urn', ?, CURRENT_TIMESTAMP)");
+                $stmt->execute([$memberUrn]);
+                return $memberUrn;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Subir imagen binaria a LinkedIn Media Asset
      */
-    public static function uploadImage(string $imageLocalPath): ?string {
+    public static function uploadImage(string $imageLocalPath, string $authorUrn): ?string {
         $cfg = self::getConfig();
         $token = $cfg['linkedin_access_token'] ?? '';
-        $orgUrn = $cfg['linkedin_org_urn'] ?? '';
 
-        if (empty($token) || empty($orgUrn) || !file_exists($imageLocalPath)) {
+        if (empty($token) || empty($authorUrn) || !file_exists($imageLocalPath)) {
             return null;
         }
 
@@ -52,7 +82,7 @@ class KeystoneLinkedInPublisher {
         $initUrl = self::$apiBase . '/images?action=initializeUpload';
         $initPayload = [
             'initializeUploadRequest' => [
-                'owner' => $orgUrn
+                'owner' => $authorUrn
             ]
         ];
 
@@ -66,47 +96,49 @@ class KeystoneLinkedInPublisher {
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($initPayload));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $initResp = curl_exec($ch);
-        $initCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($initCode !== 200 || empty($initResp)) {
-            error_log("LinkedIn init upload error ($initCode): $initResp");
+        if ($httpCode !== 200) {
             return null;
         }
 
-        $initData = json_decode($initResp, true);
-        $uploadUrl = $initData['value']['uploadUrl'] ?? '';
-        $imageUrn = $initData['value']['image'] ?? '';
+        $resJson = json_decode($response, true);
+        $uploadUrl = $resJson['value']['uploadUrl'] ?? null;
+        $imageUrn = $resJson['value']['image'] ?? null;
 
-        if (empty($uploadUrl) || empty($imageUrn)) {
+        if (!$uploadUrl || !$imageUrn) {
             return null;
         }
 
-        // Paso 2: Subir el archivo binario al CDN de LinkedIn
-        $imageData = file_get_contents($imageLocalPath);
+        // Paso 2: Subir archivo binario
+        $imgBinary = file_get_contents($imageLocalPath);
+        $mimeType = mime_content_type($imageLocalPath) ?: 'image/jpeg';
+
         $chUp = curl_init($uploadUrl);
         curl_setopt($chUp, CURLOPT_HTTPHEADER, [
             'Authorization: Bearer ' . $token,
-            'Content-Type: image/jpeg'
+            'Content-Type: ' . $mimeType
         ]);
         curl_setopt($chUp, CURLOPT_PUT, true);
-        curl_setopt($chUp, CURLOPT_POSTFIELDS, $imageData);
+        curl_setopt($chUp, CURLOPT_POSTFIELDS, $imgBinary);
         curl_setopt($chUp, CURLOPT_RETURNTRANSFER, true);
+
         $upResp = curl_exec($chUp);
         $upCode = curl_getinfo($chUp, CURLINFO_HTTP_CODE);
         curl_close($chUp);
 
         if ($upCode >= 200 && $upCode < 300) {
-            return $imageUrn; // Retorna ej: "urn:li:image:D4E10AQH..."
+            return $imageUrn;
         }
 
-        error_log("LinkedIn binary upload error ($upCode): $upResp");
         return null;
     }
 
     /**
-     * Crear y despachar Post a la Página de Empresa en LinkedIn
+     * Crear publicación en LinkedIn con resolución automática de autoría
      */
     public static function createOrganizationPost(string $text, ?string $imageLocalPath = null, ?string $landingUrl = null, ?string $title = null): array {
         $cfg = self::getConfig();
@@ -116,76 +148,61 @@ class KeystoneLinkedInPublisher {
         if (empty($token)) {
             return ['success' => false, 'error' => 'No hay Access Token de LinkedIn configurado. Vincule su cuenta primero.'];
         }
-        if (empty($orgUrn)) {
-            return ['success' => false, 'error' => 'No se ha configurado el URN de la Página de Empresa de Keystone.'];
+
+        $memberUrn = self::getMemberUrn($token);
+
+        // Estrategia de intento: Primero como Organización; si la App no tiene el permiso w_organization_social, publicar como Fundador / Administrador
+        $candidateAuthors = [];
+        if (!empty($orgUrn)) {
+            $candidateAuthors[] = $orgUrn;
+        }
+        if (!empty($memberUrn) && $memberUrn !== $orgUrn) {
+            $candidateAuthors[] = $memberUrn;
         }
 
-        // Subir imagen si viene provista
-        $imageUrn = null;
-        if (!empty($imageLocalPath) && file_exists($imageLocalPath)) {
-            $imageUrn = self::uploadImage($imageLocalPath);
+        if (empty($candidateAuthors)) {
+            return ['success' => false, 'error' => 'No se encontró un URN de autor válido (ni Organización ni Perfil personal).'];
         }
 
-        $postPayload = [
-            'author' => $orgUrn,
-            'commentary' => $text,
-            'visibility' => 'PUBLIC',
-            'distribution' => [
-                'feedDistribution' => 'MAIN_FEED',
-                'targetEntities' => [],
-                'thirdPartyDistributionChannels' => []
-            ],
-            'lifecycleState' => 'PUBLISHED',
-            'isReshareDisabledByAuthor' => false
-        ];
-
-        // Adjuntar Media (Imagen o Enlace)
-        if (!empty($imageUrn)) {
-            $postPayload['content'] = [
-                'media' => [
-                    'title' => $title ?: 'Keystone Advisors B2B Intelligence',
-                    'id' => $imageUrn
-                ]
-            ];
-        } elseif (!empty($landingUrl)) {
-            $postPayload['content'] = [
-                'article' => [
-                    'source' => $landingUrl,
-                    'title' => $title ?: 'Keystone Advisors'
-                ]
-            ];
-        }
-
+        $lastError = '';
         $postUrl = self::$apiBase . '/posts';
-        $ch = curl_init($postUrl);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . $token,
-            'Content-Type: application/json',
-            'LinkedIn-Version: ' . self::$apiVersion,
-            'X-Restli-Protocol-Version: 2.0.0'
-        ]);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postPayload));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HEADER, true);
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-        $headerStr = substr($response, 0, $headerSize);
-        $bodyStr = substr($response, $headerSize);
-        curl_close($ch);
-
-        // Fallback si falta w_organization_social
-        if (($httpCode === 400 || $httpCode === 403) && $authorUrn !== $memberUrn && !empty($memberUrn)) {
-            $authorUrn = $memberUrn;
-            $postPayload['author'] = $authorUrn;
-            if (!empty($imageLocalPath) && file_exists($imageLocalPath) && empty($imageUrn)) {
+        foreach ($candidateAuthors as $authorUrn) {
+            // Subir imagen para este author
+            $imageUrn = null;
+            if (!empty($imageLocalPath) && file_exists($imageLocalPath)) {
                 $imageUrn = self::uploadImage($imageLocalPath, $authorUrn);
-                if ($imageUrn) {
-                    $postPayload['content']['media']['id'] = $imageUrn;
-                }
             }
+
+            $postPayload = [
+                'author' => $authorUrn,
+                'commentary' => $text,
+                'visibility' => 'PUBLIC',
+                'distribution' => [
+                    'feedDistribution' => 'MAIN_FEED',
+                    'targetEntities' => [],
+                    'thirdPartyDistributionChannels' => []
+                ],
+                'lifecycleState' => 'PUBLISHED',
+                'isReshareDisabledByAuthor' => false
+            ];
+
+            if (!empty($imageUrn)) {
+                $postPayload['content'] = [
+                    'media' => [
+                        'title' => $title ?: 'Keystone Advisors B2B Intelligence',
+                        'id' => $imageUrn
+                    ]
+                ];
+            } elseif (!empty($landingUrl)) {
+                $postPayload['content'] = [
+                    'article' => [
+                        'source' => $landingUrl,
+                        'title' => $title ?: 'Keystone Advisors'
+                    ]
+                ];
+            }
+
             $ch = curl_init($postUrl);
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 'Authorization: Bearer ' . $token,
@@ -197,30 +214,54 @@ class KeystoneLinkedInPublisher {
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postPayload));
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_HEADER, true);
+
             $response = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
             $headerStr = substr($response, 0, $headerSize);
             $bodyStr = substr($response, $headerSize);
             curl_close($ch);
-        }
 
-        if ($httpCode === 201) {
-            // LinkedIn devuelve el Post URN en la cabecera x-linkedin-id o x-restli-id
-            preg_match('/x-restli-id:\s*([^\r\n]+)/i', $headerStr, $matches);
-            $postUrn = $matches[1] ?? 'urn:li:share:published';
+            if ($httpCode === 201) {
+                $postUrn = null;
+                if (preg_match('/x-restli-id:\s*([^\r\n]+)/i', $headerStr, $m)) {
+                    $postUrn = trim($m[1]);
+                } elseif (preg_match('/location:\s*([^\r\n]+)/i', $headerStr, $m)) {
+                    $postUrn = urldecode(basename(trim($m[1])));
+                }
 
-            return [
-                'success' => true,
-                'post_urn' => trim($postUrn),
-                'message' => '¡Publicación despachada con éxito a la Página de LinkedIn de Keystone Advisors!'
-            ];
+                // Guardar en bitácora de SQLite
+                require_once __DIR__ . '/KeystoneGrowthService.php';
+                $db = KeystoneGrowthService::getDb();
+                $stmtIns = $db->prepare("INSERT INTO mkt_ai_creatives 
+                    (tenant_slug, platform, topic, headlines_json, descriptions_json, video_script_text, banner_image_path, model_used, created_at)
+                    VALUES (?, 'linkedin_published', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
+                $stmtIns->execute([
+                    strpos($authorUrn, 'organization') !== false ? 'keystone_org' : 'keystone_founder',
+                    $title ?: 'Publicación LinkedIn',
+                    json_encode([$title]),
+                    json_encode([$postUrn]),
+                    $text,
+                    $imageLocalPath ?: '',
+                    'LinkedIn Rest API ' . self::$apiVersion . " ($authorUrn)"
+                ]);
+
+                return [
+                    'success' => true,
+                    'post_urn' => $postUrn,
+                    'author_used' => $authorUrn,
+                    'is_organization' => (strpos($authorUrn, 'organization') !== false),
+                    'message' => '¡Publicación enviada exitosamente a LinkedIn!'
+                ];
+            }
+
+            $lastError = "HTTP $httpCode: " . $bodyStr;
+            // Si el error fue de permisos de Organización (400 / 403), el bucle continúa e intenta con Member
         }
 
         return [
             'success' => false,
-            'http_code' => $httpCode,
-            'error' => "Error al publicar en LinkedIn (HTTP $httpCode): " . $bodyStr
+            'error' => 'Error al publicar en LinkedIn: ' . $lastError
         ];
     }
 }
