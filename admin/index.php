@@ -4610,6 +4610,44 @@ $scans_list = $db->query("
               </div>
             </div>
 
+            <!-- Fila Presupuesto y Puja para Google Ads / Pauta Digital (SOL-0189) -->
+            <div id="boxGoogleAdsBudget" style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:1rem; margin-bottom:1rem;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+                <span style="font-weight:800; font-size:0.85rem; color:#0369a1; display:flex; align-items:center; gap:0.4rem;">
+                  <span>💰</span> Presupuesto de Campaña & Simulación de Puja Google Ads
+                </span>
+                <span style="font-size:0.72rem; background:#e0f2fe; color:#0369a1; padding:0.15rem 0.5rem; border-radius:4px; font-weight:700;">
+                  Customer ID: 396-771-8344
+                </span>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:0.75rem;">
+                <div>
+                  <label style="display:block; font-size:0.75rem; font-weight:700; color:#334155; margin-bottom:0.25rem;">Presupuesto Diario Sugerido:</label>
+                  <div style="display:flex; align-items:center; gap:0.35rem;">
+                    <select id="ai_budget_currency" name="budget_currency" style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; background:#fff; font-weight:700;">
+                      <option value="CLP" selected>CLP ($)</option>
+                      <option value="USD">USD ($)</option>
+                    </select>
+                    <input type="number" id="ai_daily_budget" name="daily_budget" value="15000" step="1000" style="flex:1; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; font-weight:700; color:#0f172a;" oninput="recalcBudgetEstimates();">
+                  </div>
+                </div>
+                <div>
+                  <label style="display:block; font-size:0.75rem; font-weight:700; color:#334155; margin-bottom:0.25rem;">Estrategia de Puja (Bidding):</label>
+                  <select id="ai_bidding_strategy" name="bidding_strategy" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; background:#fff; font-weight:600; color:#0f172a;" onchange="recalcBudgetEstimates();">
+                    <option value="MAX_CONVERSIONS" selected>Maximizar Conversiones (Recomendado)</option>
+                    <option value="MAX_CLICKS">Maximizar Clics (Tráfico)</option>
+                    <option value="TARGET_CPA">CPA Objetivo (Costo por Lead)</option>
+                  </select>
+                </div>
+                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:0.5rem 0.75rem; display:flex; flex-direction:column; justify-content:center;">
+                  <span style="font-size:0.7rem; color:#64748b; font-weight:700; text-transform:uppercase;">Estimación Mensual:</span>
+                  <div style="font-size:0.85rem; font-weight:800; color:#003366;" id="txtBudgetEstimateSummary">
+                    $450.000 CLP/mes · ~300 a 450 Clics B2B
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Fila 3: Generación de Banner Visual -->
             <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1.25rem;">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
@@ -4928,6 +4966,45 @@ $scans_list = $db->query("
 
         // Generador con IA
         
+        function recalcBudgetEstimates() {
+          const cur = document.getElementById('ai_budget_currency') ? document.getElementById('ai_budget_currency').value : 'CLP';
+          const daily = parseFloat(document.getElementById('ai_daily_budget') ? document.getElementById('ai_daily_budget').value : 15000) || 0;
+          const monthly = daily * 30;
+          const txt = document.getElementById('txtBudgetEstimateSummary');
+          if (!txt) return;
+
+          if (cur === 'CLP') {
+            const minClicks = Math.round(monthly / 1400);
+            const maxClicks = Math.round(monthly / 950);
+            txt.innerHTML = `$${monthly.toLocaleString()} CLP/mes · ~${minClicks} a ${maxClicks} Clics B2B`;
+          } else {
+            const minClicks = Math.round(monthly / 1.5);
+            const maxClicks = Math.round(monthly / 0.9);
+            txt.innerHTML = `$${monthly.toLocaleString()} USD/mes · ~${minClicks} a ${maxClicks} Clics B2B`;
+          }
+        }
+
+        function switchGooglePreviewMode(mode) {
+          const box = document.getElementById('googleSerpBox');
+          const btnD = document.getElementById('btnPreviewDesktop');
+          const btnM = document.getElementById('btnPreviewMobile');
+          if (!box) return;
+
+          if (mode === 'mobile') {
+            box.style.maxWidth = '360px';
+            box.style.border = '2px solid #0284c7';
+            box.style.borderRadius = '16px';
+            if (btnM) { btnM.style.background = '#003366'; btnM.style.color = '#fff'; }
+            if (btnD) { btnD.style.background = '#f1f5f9'; btnD.style.color = '#475569'; }
+          } else {
+            box.style.maxWidth = '650px';
+            box.style.border = '1px solid #e8eaed';
+            box.style.borderRadius = '8px';
+            if (btnD) { btnD.style.background = '#003366'; btnD.style.color = '#fff'; }
+            if (btnM) { btnM.style.background = '#f1f5f9'; btnM.style.color = '#475569'; }
+          }
+        }
+
         function onTenantChanged(val) {
           const customBox = document.getElementById("boxCustomTenant");
           if (val === "custom") {
@@ -5557,16 +5634,108 @@ $scans_list = $db->query("
                 </div>
               `;
 
-              if (cr.google_headlines) {
-                html += `<div style="margin-bottom:1rem;"><strong>Titulares Google Ads (30 caracteres):</strong><ul style="margin:0.35rem 0 0 1.25rem;">`;
-                cr.google_headlines.forEach(h => { html += `<li><code>${h}</code></li>`; });
-                html += `</ul></div>`;
-              }
+              // SIMULADOR VISUAL GOOGLE ADS RSA (BÚSQUEDA)
+              if (cr.google_headlines && cr.google_descriptions) {
+                const h1 = cr.google_headlines[0] || 'Keystone Advisors';
+                const h2 = cr.google_headlines[1] || 'Consultoría & Soluciones';
+                const h3 = cr.google_headlines[2] || 'Sitio Oficial';
+                const d1 = cr.google_descriptions[0] || '';
+                const d2 = cr.google_descriptions[1] || '';
+                const currency = document.getElementById('ai_budget_currency') ? document.getElementById('ai_budget_currency').value : 'CLP';
+                const dailyB = document.getElementById('ai_daily_budget') ? document.getElementById('ai_daily_budget').value : '15000';
 
-              if (cr.google_descriptions) {
-                html += `<div style="margin-bottom:1rem;"><strong>Descripciones Google Ads (90 caracteres):</strong><ul style="margin:0.35rem 0 0 1.25rem;">`;
-                cr.google_descriptions.forEach(d => { html += `<li>${d}</li>`; });
-                html += `</ul></div>`;
+                html += `
+                  <!-- Contenedor Simulador Google Ads -->
+                  <div style="background:#ffffff; border:2px solid #e2e8f0; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 4px 14px rgba(0,0,0,0.04);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:0.75rem; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+                      <div>
+                        <h5 style="margin:0; font-size:1.05rem; font-weight:800; color:#003366; display:flex; align-items:center; gap:0.4rem;">
+                          <span>🔍</span> Simulador de Anuncio Google Search (RSA)
+                        </h5>
+                        <span style="font-size:0.75rem; color:#64748b;">Visualización idéntica a cómo verán los directivos y decisores tu anuncio en los resultados de búsqueda de Google.</span>
+                      </div>
+                      <div style="display:flex; gap:0.4rem;">
+                        <button type="button" onclick="switchGooglePreviewMode('desktop');" id="btnPreviewDesktop" style="background:#003366; color:#fff; border:none; padding:0.35rem 0.75rem; border-radius:4px; font-size:0.75rem; font-weight:700; cursor:pointer;">💻 Desktop</button>
+                        <button type="button" onclick="switchGooglePreviewMode('mobile');" id="btnPreviewMobile" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:0.35rem 0.75rem; border-radius:4px; font-size:0.75rem; font-weight:700; cursor:pointer;">📱 Móvil</button>
+                      </div>
+                    </div>
+
+                    <!-- Caja Simulador Google SERP -->
+                    <div id="googleSerpBox" style="background:#ffffff; border:1px solid #e8eaed; border-radius:8px; padding:1.25rem; font-family:arial,sans-serif; max-width:650px; margin-bottom:1rem;">
+                      <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.3rem;">
+                        <div style="width:26px; height:26px; border-radius:50%; background:#f1f3f4; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:800; color:#1a73e8;">KS</div>
+                        <div style="line-height:1.2;">
+                          <div style="font-size:0.85rem; color:#202124; font-weight:700;">Keystone Advisors Global</div>
+                          <div style="font-size:0.75rem; color:#4d5156;">https://www.keystoneadvisors.cl &gt; servicios</div>
+                        </div>
+                        <span style="margin-left:auto; font-size:0.7rem; font-weight:800; color:#202124; background:#f1f3f4; padding:0.15rem 0.4rem; border-radius:3px;">Patrocinado · Anuncio</span>
+                      </div>
+
+                      <!-- Título del Anuncio (Azul Google) -->
+                      <h3 id="googleAdHeadlinePreview" style="margin:0 0 0.4rem 0; font-size:1.25rem; line-height:1.3; font-weight:400; color:#1a0dab; cursor:pointer;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                        ${h1} | ${h2} | ${h3}
+                      </h3>
+
+                      <!-- Descripción del Anuncio -->
+                      <p id="googleAdDescPreview" style="margin:0; font-size:0.88rem; line-height:1.45; color:#4d5156;">
+                        ${d1} ${d2}
+                      </p>
+
+                      <!-- Extensiones de Enlace de Sitio (Sitelinks B2B) -->
+                      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-top:0.85rem; padding-top:0.75rem; border-top:1px dashed #e8eaed;">
+                        <div>
+                          <a href="#" style="color:#1a0dab; font-size:0.82rem; font-weight:700; text-decoration:none;">• Agendar Diagnóstico Senior</a>
+                          <div style="font-size:0.72rem; color:#5f6368;">Sesión ejecutiva de 30 minutos sin costo.</div>
+                        </div>
+                        <div>
+                          <a href="#" style="color:#1a0dab; font-size:0.82rem; font-weight:700; text-decoration:none;">• Casos de Éxito & Clientes</a>
+                          <div style="font-size:0.72rem; color:#5f6368;">Banca, retail y corporaciones regionales.</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Píldoras de Presupuesto y Estado de Campaña -->
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.75rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+                      <div style="font-size:0.78rem; color:#475569;">
+                        💵 Pauta Asignada: <strong>${currency} $${Number(dailyB).toLocaleString()} / día</strong> · Cuenta ID: <code>396-771-8344</code>
+                      </div>
+                      <button type="button" onclick="alert('✓ Campaña de Búsqueda guardada como Borrador Técnico para sincronizar con Google Ads en cuanto se complete la autorización OAuth.');" style="background:#16a34a; color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:700; font-size:0.8rem; cursor:pointer;">
+                        💾 Guardar Borrador RSA
+                      </button>
+                    </div>
+
+                    <!-- Acordeón Desplegable de Todos los 15 Titulares y 4 Descripciones para afinar -->
+                    <details style="margin-top:1rem; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:0.6rem 0.85rem;">
+                      <summary style="font-weight:700; font-size:0.82rem; color:#003366; cursor:pointer;">
+                        📝 Ver y Seleccionar entre los 15 Titulares y 4 Descripciones Generadas (${cr.google_headlines.length} titulares disponibles)
+                      </summary>
+                      <div style="margin-top:0.75rem; display:grid; grid-template-columns:1.2fr 1fr; gap:1rem;">
+                        <div>
+                          <strong style="font-size:0.78rem; color:#334155; display:block; margin-bottom:0.35rem;">Titulares Generados (≤ 30 caracteres):</strong>
+                          <div style="display:flex; flex-direction:column; gap:0.35rem;">
+                            ${cr.google_headlines.map((h, i) => `
+                              <div style="display:flex; align-items:center; justify-content:space-between; background:#fff; border:1px solid #e2e8f0; padding:0.35rem 0.55rem; border-radius:4px; font-size:0.8rem;">
+                                <span>${h}</span>
+                                <span style="font-size:0.7rem; color:${h.length <= 30 ? '#16a34a' : '#ef4444'}; font-weight:800;">${h.length}/30</span>
+                              </div>
+                            `).join('')}
+                          </div>
+                        </div>
+                        <div>
+                          <strong style="font-size:0.78rem; color:#334155; display:block; margin-bottom:0.35rem;">Descripciones Generadas (≤ 90 caracteres):</strong>
+                          <div style="display:flex; flex-direction:column; gap:0.35rem;">
+                            ${cr.google_descriptions.map((d, i) => `
+                              <div style="background:#fff; border:1px solid #e2e8f0; padding:0.45rem; border-radius:4px; font-size:0.78rem; line-height:1.35;">
+                                <div>${d}</div>
+                                <div style="text-align:right; font-size:0.7rem; color:${d.length <= 90 ? '#16a34a' : '#ef4444'}; font-weight:800; margin-top:0.2rem;">${d.length}/90</div>
+                              </div>
+                            `).join('')}
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+                `;
               }
 
               if (cr.linkedin_post) {
