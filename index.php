@@ -852,7 +852,10 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
             <div class="service-icon" style="background:#fef3c7; color:#d97706;">🎭</div>
             <h3 class="service-title">Red Teaming Asistido por IA</h3>
             <p class="service-desc">Simulaciones de ingeniería social hiperpersonalizadas con modelos LLM contextuales (noticias reales, directores, contratos públicos) y pruebas controladas de voz sintética para entrenar a directivos y finanzas.</p>
-            <button type="button" onclick="openRedTeamSimulatorModal()" class="service-link" style="background:none; border:none; padding:0; font-family:inherit; font-size:inherit; font-weight:700; cursor:pointer; color:#0284c7; text-align:left;">Simular ataque con IA ➜</button>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem; flex-wrap:wrap; gap:0.5rem;">
+              <a href="#como-opera-redteaming" class="service-link" style="color:#0284c7; font-weight:700;">¿Cómo opera? ➜</a>
+              <button type="button" onclick="openRedTeamSimulatorModal()" class="service-link" style="background:none; border:none; padding:0; font-family:inherit; font-size:inherit; font-weight:700; cursor:pointer; color:#d97706; text-align:left;">Simular con IA ➜</button>
+            </div>
           </div>
 
           <div class="service-card">
@@ -1292,6 +1295,199 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
                 data-product-price="Desde USD $1.250 / Mes"
                 style="background:linear-gradient(135deg, #059669 0%, #10b981 100%); padding:0.8rem 1.6rem; font-weight:700;">
           Agendar Sesión de Habilitación ➜
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Sección Arquitectura Operativa Red Teaming Asistido por IA -->
+  <section class="section" id="como-opera-redteaming" style="background:#080e1e; color:#f1f5f9; padding: 4.5rem 0; border-bottom: 1px solid #1e293b;">
+    <div class="section-container">
+      <div class="section-header" style="text-align:center; margin-bottom: 3.5rem;">
+        <span class="badge-dev" style="background:rgba(217, 119, 6, 0.15); color:#f59e0b; border:1px solid #d97706;">Ingeniería Social Ofensiva & Blindaje Humano</span>
+        <h2 class="section-title" style="color:#ffffff; font-size:2.3rem; font-weight:800; margin-top:0.75rem;">¿Cómo Opera el Red Teaming Asistido por IA?</h2>
+        <p class="section-desc" style="color:#94a3b8; max-width:760px; margin:0 auto; font-size:1.05rem;">
+          Anticipe el fraude corporativo antes de que ocurra. Emulamos ataques avanzados de ciberdelincuentes utilizando modelos LLM contextuales y clonación de voz sintética para evaluar y blindar su primera línea de defensa: las personas.
+        </p>
+      </div>
+
+      <!-- Grid de 4 Pasos Metodológicos -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        
+        <!-- Fase 1 -->
+        <div style="background:#111b2f; border:1px solid #1e293b; border-radius:12px; padding:1.75rem; position:relative;">
+          <div style="font-size:0.75rem; font-weight:800; color:#f59e0b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.5rem;">01. Reconocimiento OSINT</div>
+          <h4 style="color:#ffffff; font-size:1.1rem; margin-bottom:0.75rem;">Mapeo de Huella Digital con IA</h4>
+          <p style="font-size:0.85rem; color:#94a3b8; line-height:1.5;">
+            Recolección ética y automatizada de fuentes públicas (LinkedIn, licitaciones de Mercado Público, notas de prensa y contratos) para perfilar jerarquías ejecutivas, proveedores recurrentes y jerga corporativa real.
+          </p>
+        </div>
+
+        <!-- Fase 2 -->
+        <div style="background:#111b2f; border:1px solid #1e293b; border-radius:12px; padding:1.75rem; position:relative;">
+          <div style="font-size:0.75rem; font-weight:800; color:#38bdf8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.5rem;">02. Armado de Vector</div>
+          <h4 style="color:#ffffff; font-size:1.1rem; margin-bottom:0.75rem;">Hiperpersonalización LLM & Voz</h4>
+          <p style="font-size:0.85rem; color:#94a3b8; line-height:1.5;">
+            Generación de señuelos indetectables: correos con tono idéntico al del Director General (BEC), notificaciones tributarias verosímiles y llamadas controladas de voz sintética (Vishing) con números locales autorizados.
+          </p>
+        </div>
+
+        <!-- Fase 3 -->
+        <div style="background:#111b2f; border:1px solid #1e293b; border-radius:12px; padding:1.75rem; position:relative;">
+          <div style="font-size:0.75rem; font-weight:800; color:#ef4444; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.5rem;">03. Ejecución Controlada</div>
+          <h4 style="color:#ffffff; font-size:1.1rem; margin-bottom:0.75rem;">Simulación Ciega a Tesorería</h4>
+          <p style="font-size:0.85rem; color:#94a3b8; line-height:1.5;">
+            Despliegue sin preaviso a colaboradores clave para medir en tiempo real el porcentaje de apertura, clics en enlaces, descarga de archivos o disposición a autorizar pagos fuera de los canales oficiales.
+          </p>
+        </div>
+
+        <!-- Fase 4 -->
+        <div style="background:#111b2f; border:1px solid #1e293b; border-radius:12px; padding:1.75rem; position:relative;">
+          <div style="font-size:0.75rem; font-weight:800; color:#10b981; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.5rem;">04. Remediación & Cumplimiento</div>
+          <h4 style="color:#ffffff; font-size:1.1rem; margin-bottom:0.75rem;">Informe Forense & Capacitación</h4>
+          <p style="font-size:0.85rem; color:#94a3b8; line-height:1.5;">
+            Entrega de informe pericial con índice de susceptibilidad, brechas humanas identificadas, cumplimiento de la Ley N° 21.459 y micro-cápsulas de concienciación en el instante del clic («Teachable Moment»).
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Botón de Disparo Rápido de Simulador -->
+      <div style="text-align:center; margin-bottom:4rem;">
+        <button type="button" onclick="openRedTeamSimulatorModal()" class="btn btn-secondary" style="background:#1e293b; border-color:#d97706; color:#f59e0b; padding:0.75rem 1.75rem; font-weight:700;">
+          🎭 Probar Simulador de Ataques con IA en Vivo ➜
+        </button>
+      </div>
+
+      <!-- Matriz de Planes Comerciales Red Teaming Asistido por IA -->
+      <div id="planes-redteaming" style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1);">
+        <div style="text-align:center; margin-bottom: 3rem;">
+          <span class="badge-dev" style="background:rgba(217, 119, 6, 0.15); color:#f59e0b; border:1px solid #d97706;">Programas Corporativos de Simulación</span>
+          <h3 style="font-size:2rem; font-weight:800; color:#ffffff; margin-top:0.5rem; margin-bottom:0.5rem;">Planes de Simulación & Red Teaming</h3>
+          <p style="color:#94a3b8; font-size:0.95rem; max-width:680px; margin:0 auto;">Entrene y certifique a sus equipos contra ataques de ingeniería social de última generación asistidos por Inteligencia Artificial.</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.75rem;">
+          
+          <!-- Plan 1: Campaña Táctica Diagnóstica (One-Off) -->
+          <div style="background:#111b2f; border: 1px solid #1e293b; border-radius: 14px; padding: 2.25rem 1.75rem; display:flex; flex-direction:column; position:relative;">
+            <div style="font-size:0.8rem; font-weight:800; color:#f59e0b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.35rem;">Diagnóstico Inicial</div>
+            <h4 style="font-size:1.4rem; font-weight:800; color:#ffffff; margin-bottom:0.5rem;">Campaña Táctica One-Off</h4>
+            <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:1.25rem; min-height:40px;">Evaluación puntual para medir la postura de ciberseguridad humana y detectar vulnerabilidades críticas de tesorería.</p>
+            
+            <div style="margin-bottom:1.25rem; padding-bottom:1.25rem; border-bottom:1px solid #1e293b;">
+              <span style="font-size:0.85rem; color:#94a3b8;">Desde</span>
+              <span class="price-cur" data-price-cur style="font-size:1.1rem; font-weight:700; color:#f59e0b;">USD</span>
+              <span class="price-amt" data-price-usd="1.150" data-price-uf="28" style="font-size:2.2rem; font-weight:800; color:#ffffff;">$1.150</span>
+              <span style="font-size:0.85rem; color:#94a3b8;">/ Proyecto</span>
+              <div class="price-sub" data-sub-usd="1 ejercicio completo (Hasta 50 colaboradores)" data-sub-uf="1 ejercicio completo (Desde UF 28 por campaña)" style="font-size:0.75rem; color:#64748b; margin-top:0.25rem;">1 ejercicio completo (Hasta 50 colaboradores)</div>
+            </div>
+
+            <ul style="list-style:none; padding:0; margin:0 0 1.75rem 0; font-size:0.85rem; color:#cbd5e1; display:flex; flex-direction:column; gap:0.65rem;">
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span><strong>1 Escenario Contextual Hiperpersonalizado</strong> con LLM</span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span>Evaluación de hasta <strong>50 colaboradores</strong> clave</span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span>Simulación de <strong>Fraude del CEO (BEC) o Cambio de Cuenta</strong></span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span>Retroalimentación inmediata interactiva al hacer clic</span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span>Informe pericial ejecutivo en PDF con recomendaciones</span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span>Sesión ejecutiva de 45 min con especialista Keystone</span></li>
+            </ul>
+
+            <button class="btn btn-secondary btn-buy-product" 
+                    data-product-id="PROD-REDTEAM-TACTIC" 
+                    data-product-name="Red Teaming Campaña Táctica (One-Off)" 
+                    data-product-price="Desde USD $1.150"
+                    data-price-usd-label="Desde USD $1.150"
+                    data-price-uf-label="Desde UF 28 (Campaña Táctica)"
+                    style="margin-top:auto; width:100%; justify-content:center; background:#1e293b; color:#ffffff; border-color:#d97706;">
+              Contratar Campaña Táctica
+            </button>
+          </div>
+
+          <!-- Plan 2: Continuo Trimestral (Corporate Defense - Destacado) -->
+          <div style="background:#14223d; border: 2px solid #d97706; border-radius: 14px; padding: 2.25rem 1.75rem; display:flex; flex-direction:column; position:relative; box-shadow:0 15px 35px -5px rgba(217,119,6,0.25);">
+            <div style="position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:#d97706; color:#ffffff; font-size:0.72rem; font-weight:800; padding:0.25rem 0.85rem; border-radius:99px; text-transform:uppercase; letter-spacing:0.5px;">Recomendado Anual</div>
+            <div style="font-size:0.8rem; font-weight:800; color:#fbbf24; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.35rem;">Programa Trimestral</div>
+            <h4 style="font-size:1.4rem; font-weight:800; color:#ffffff; margin-bottom:0.5rem;">Corporate Defense Anual</h4>
+            <p style="font-size:0.85rem; color:#cbd5e1; margin-bottom:1.25rem; min-height:40px;">Entrenamiento y evaluación continua con 4 simulaciones al año, rotación de vectores y prueba de Vishing con voz sintética.</p>
+            
+            <div style="margin-bottom:1.25rem; padding-bottom:1.25rem; border-bottom:1px solid #1e3a5f;">
+              <span style="font-size:0.85rem; color:#94a3b8;">Desde</span>
+              <span class="price-cur" data-price-cur style="font-size:1.1rem; font-weight:700; color:#fbbf24;">USD</span>
+              <span class="price-amt" data-price-usd="650" data-price-uf="16" style="font-size:2.2rem; font-weight:800; color:#ffffff;">$650</span>
+              <span style="font-size:0.85rem; color:#94a3b8;">/ Mes</span>
+              <div class="price-sub" data-sub-usd="Facturación anual (4 campañas al año / hasta 150 usuarios)" data-sub-uf="Facturación anual (Desde UF 16 / mes)" style="font-size:0.75rem; color:#fbbf24; margin-top:0.25rem; font-weight:700;">Facturación anual (4 campañas al año / hasta 150 usuarios)</div>
+            </div>
+
+            <ul style="list-style:none; padding:0; margin:0 0 1.75rem 0; font-size:0.85rem; color:#f1f5f9; display:flex; flex-direction:column; gap:0.65rem;">
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span><strong>4 Simulaciones al Año</strong> (1 por trimestre programado)</span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span>Hasta <strong>150 colaboradores</strong> evaluados de forma continua</span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span><strong>Rotación de Vectores:</strong> BEC, Vishing Telefónico y Quishing QR</span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span><strong>1 Prueba de Vishing Telefónico</strong> con voz sintética controlada</span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span>Métricas de evolución del índice de riesgo humano</span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span>Certificado pericial de cumplimiento Ley 21.459 para auditorías</span></li>
+            </ul>
+
+            <button class="btn btn-primary btn-buy-product" 
+                    data-product-id="PROD-REDTEAM-ANNUAL" 
+                    data-product-name="Red Teaming Corporate Defense Anual" 
+                    data-product-price="Desde USD $650 / Mes"
+                    data-price-usd-label="Desde USD $650 / Mes"
+                    data-price-uf-label="Desde UF 16 / Mes (Anual)"
+                    style="margin-top:auto; width:100%; justify-content:center; background:linear-gradient(135deg, #d97706 0%, #b45309 100%); font-weight:700;">
+              Contratar Programa Anual ➜
+            </button>
+          </div>
+
+          <!-- Plan 3: Enterprise Continuous Threat (Holdings & Banca) -->
+          <div style="background:#111b2f; border: 1px solid #1e293b; border-radius: 14px; padding: 2.25rem 1.75rem; display:flex; flex-direction:column; position:relative;">
+            <div style="font-size:0.8rem; font-weight:800; color:#a855f7; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.35rem;">Corporaciones & Holdings</div>
+            <h4 style="font-size:1.4rem; font-weight:800; color:#ffffff; margin-bottom:0.5rem;">Enterprise Threat Intel</h4>
+            <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:1.25rem; min-height:40px;">Simulaciones permanentes ilimitadas, monitoreo de filtraciones en Dark Web y protección ejecutiva personalizada C-Suite.</p>
+            
+            <div style="margin-bottom:1.25rem; padding-bottom:1.25rem; border-bottom:1px solid #1e293b;">
+              <span style="font-size:0.85rem; color:#94a3b8;">Desde</span>
+              <span class="price-cur" data-price-cur style="font-size:1.1rem; font-weight:700; color:#a855f7;">USD</span>
+              <span class="price-amt" data-price-usd="1.450" data-price-uf="35" style="font-size:2.2rem; font-weight:800; color:#ffffff;">$1.450</span>
+              <span style="font-size:0.85rem; color:#94a3b8;">/ Mes</span>
+              <div class="price-sub" data-sub-usd="Simulaciones ilimitadas / multi-empresa" data-sub-uf="Simulaciones ilimitadas / multi-empresa (Desde UF 35 / mes)" style="font-size:0.75rem; color:#64748b; margin-top:0.25rem;">Simulaciones ilimitadas / multi-empresa</div>
+            </div>
+
+            <ul style="list-style:none; padding:0; margin:0 0 1.75rem 0; font-size:0.85rem; color:#cbd5e1; display:flex; flex-direction:column; gap:0.65rem;">
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span><strong>Todo lo del Plan Corporate Defense</strong></span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span><strong>Colaboradores Ilimitados</strong> en múltiples razones sociales</span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span>Monitoreo 24/7 de <strong>Credenciales Filtradas en Dark Web</strong></span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span>Simulaciones de <strong>Deepfake de Audio y Video en tiempo real</strong></span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span>Integración API SIEM / SOC y canal prioritario Slack / Teams</span></li>
+              <li style="display:flex; align-items:flex-start; gap:0.5rem;"><span style="color:#10b981;">✓</span> <span>Oficial de Seguridad Asignado y soporte forense en vivo</span></li>
+            </ul>
+
+            <button class="btn btn-secondary btn-buy-product" 
+                    data-product-id="PROD-REDTEAM-ENTERPRISE" 
+                    data-product-name="Red Teaming Enterprise Threat Intel" 
+                    data-product-price="Desde USD $1.450 / Mes"
+                    data-price-usd-label="Desde USD $1.450 / Mes"
+                    data-price-uf-label="Desde UF 35 / Mes"
+                    style="margin-top:auto; width:100%; justify-content:center; background:#1e293b; color:#ffffff; border-color:#a855f7;">
+              Cotizar Plan Enterprise
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Protocol Box Red Teaming -->
+      <div style="background:linear-gradient(135deg, #1c1917 0%, #0c0a09 100%); border:1px solid #78350f; border-radius:12px; padding:1.75rem 2rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1.5rem; margin-top:3.5rem;">
+        <div>
+          <h4 style="color:#ffffff; font-size:1.15rem; margin-bottom:0.35rem;">¿Desea medir la vulnerabilidad de su organización ante ataques con IA?</h4>
+          <p style="color:#cbd5e1; font-size:0.88rem;">Planificación en 24 horas bajo estricto acuerdo de confidencialidad y autorización previa.</p>
+        </div>
+        <button class="btn btn-primary btn-buy-product" 
+                data-product-id="PROD-REDTEAM-ANNUAL" 
+                data-product-name="Red Teaming Corporate Defense Anual" 
+                data-product-price="Desde USD $650 / Mes"
+                style="background:linear-gradient(135deg, #d97706 0%, #b45309 100%); padding:0.8rem 1.6rem; font-weight:700;">
+          Agendar Ejercicio de Red Teaming ➜
         </button>
       </div>
 
