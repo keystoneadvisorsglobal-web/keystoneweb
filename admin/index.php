@@ -98,9 +98,9 @@ if ($current_admin_role === 'admin') $current_admin_role = 'superadmin';
 
 // Matriz de pestañas permitidas por rol
 $rbac_allowed_tabs = [
-    'superadmin' => ['dashboard', 'leads', 'scans', 'replies', 'treasury', 'dmarc', 'marketing', 'smtp', 'users'],
-    'comercial'  => ['dashboard', 'leads', 'scans', 'replies', 'marketing'],
-    'secops'     => ['treasury', 'dmarc', 'scans']
+    'superadmin' => ['dashboard', 'leads', 'scans', 'replies', 'treasury', 'dmarc', 'redteaming', 'marketing', 'integrations', 'smtp', 'users'],
+    'comercial'  => ['dashboard', 'leads', 'scans', 'replies', 'redteaming', 'marketing', 'integrations'],
+    'secops'     => ['treasury', 'dmarc', 'scans', 'redteaming']
 ];
 
 function canAccessTab($tabName, $role, $map) {
@@ -727,7 +727,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
-// Regenerar Banner Visual con Nuevas Instrucciones (SOL-0177)
+// Regenerar Banner Visual con Nuevas Instrucciones y Selección de Motor (SOL-0177 & SOL-0188)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'growth_regenerate_banner' && isset($_SESSION['admin_logged'])) {
     header('Content-Type: application/json; charset=utf-8');
     require_once __DIR__ . '/../api/KeystoneGrowthService.php';
@@ -735,8 +735,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $tenantSlug = trim($_POST['tenant_slug'] ?? 'keystone_deepshield');
     $topic = trim($_POST['topic'] ?? 'Ciberseguridad Corporativa');
     $customInstructions = trim($_POST['custom_instructions'] ?? '');
+    $engine = trim($_POST['image_engine'] ?? 'flux');
 
-    $res = KeystoneGrowthService::generateBannerFlux($tenantSlug, $topic, $customInstructions);
+    $res = KeystoneGrowthService::generateBanner($tenantSlug, $topic, $customInstructions, $engine);
     echo json_encode($res);
     exit;
 }
@@ -753,13 +754,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $topic = trim($_POST['campaign_goal'] ?? 'Implementación y consultoría Salesforce');
     $targetAudience = trim($_POST['target_audience'] ?? 'Gerentes de TI y CIOs');
     $visualPrompt = trim($_POST['visual_prompt'] ?? '');
+    $imageEngine = trim($_POST['image_engine'] ?? 'flux');
 
     $copyRes = KeystoneGrowthService::generateAdCopy($tenantId, $topic, $targetAudience, $targetPlatform);
 
-    // Si además solicitó generar banner con FLUX.1
+    // Si además solicitó generar banner con IA
     $bannerRes = null;
     if (!empty($_POST['generate_banner'])) {
-        $bannerRes = KeystoneGrowthService::generateBannerFlux($tenantId, $topic, $visualPrompt);
+        $bannerRes = KeystoneGrowthService::generateBanner($tenantId, $topic, $visualPrompt, $imageEngine);
     }
 
     echo json_encode([
@@ -767,6 +769,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         'copy' => $copyRes,
         'banner' => $bannerRes
     ]);
+    exit;
+}
+
+// Acción: Probar Conexión en Vivo de Integraciones (SOL-0188)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'test_integrations_health' && isset($_SESSION['admin_logged'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    require_once __DIR__ . '/../api/KeystoneGrowthService.php';
+    $results = KeystoneGrowthService::checkIntegrationsHealth();
+    echo json_encode(['success' => true, 'services' => $results]);
+    exit;
+}
+
+// Acción: Guardar Credenciales de Integraciones de Marketing (SOL-0188)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_marketing_credentials' && isset($_SESSION['admin_logged'])) {
+    require_once __DIR__ . '/../api/KeystoneGrowthService.php';
+
+    if (isset($_POST['google_ai_api_key'])) {
+        KeystoneGrowthService::setSetting('google_ai_api_key', trim($_POST['google_ai_api_key']));
+    }
+    if (isset($_POST['groq_api_key'])) {
+        KeystoneGrowthService::setSetting('groq_api_key', trim($_POST['groq_api_key']));
+    }
+    if (isset($_POST['cf_account_id'])) {
+        KeystoneGrowthService::setSetting('cf_account_id', trim($_POST['cf_account_id']));
+    }
+    if (isset($_POST['cf_ai_token'])) {
+        KeystoneGrowthService::setSetting('cf_ai_token', trim($_POST['cf_ai_token']));
+    }
+    if (isset($_POST['google_ads_customer_id'])) {
+        KeystoneGrowthService::setSetting('google_ads_customer_id', trim($_POST['google_ads_customer_id']));
+    }
+    if (isset($_POST['linkedin_client_id'])) {
+        KeystoneGrowthService::setSetting('linkedin_client_id', trim($_POST['linkedin_client_id']));
+    }
+    if (!empty($_POST['linkedin_client_secret'])) {
+        KeystoneGrowthService::setSetting('linkedin_client_secret', trim($_POST['linkedin_client_secret']));
+    }
+    if (isset($_POST['linkedin_org_id'])) {
+        KeystoneGrowthService::setSetting('linkedin_org_id', trim($_POST['linkedin_org_id']));
+        KeystoneGrowthService::setSetting('linkedin_org_urn', 'urn:li:organization:' . trim($_POST['linkedin_org_id']));
+    }
+
+    header("Location: index.php?tab=integrations&saved=1");
     exit;
 }
 
@@ -1265,23 +1310,46 @@ $scans_list = $db->query("
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
     body { background: #f8fafc; color: #333333; line-height: 1.5; font-size: 14px; }
     
-    /* Layout Header */
-    .topbar { background: #001730; color: #ffffff; padding: 0.85rem 2rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #00b4d8; }
-    .topbar-brand { display: flex; align-items: center; gap: 1rem; font-weight: 700; font-size: 1.1rem; }
-    .topbar-brand img { height: 36px; max-width: 160px; object-fit: contain; }
-    .topbar-user { display: flex; align-items: center; gap: 1.25rem; font-size: 0.88rem; }
-    .btn-logout { background: rgba(255,255,255,0.1); color: #ffffff; text-decoration: none; padding: 0.4rem 0.85rem; border-radius: 6px; font-weight: 700; font-size: 0.82rem; transition: 0.2s; border: 1px solid rgba(255,255,255,0.2); }
-    .btn-logout:hover { background: #ef4444; border-color: #ef4444; }
+    /* Layout Shell con Sidebar Vertical (SOL-0188) */
+    .app-shell { display: flex; min-height: 100vh; background: #f8fafc; }
+    
+    /* Sidebar Vertical */
+    .sidebar { width: 270px; flex-shrink: 0; background: #001730; color: #f8fafc; display: flex; flex-direction: column; border-right: 1px solid #1e293b; position: sticky; top: 0; height: 100vh; overflow-y: auto; z-index: 1000; box-shadow: 4px 0 12px rgba(0,0,0,0.15); }
+    .sidebar-brand { padding: 1.25rem 1.25rem 1rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 0.75rem; }
+    .sidebar-brand img { height: 32px; max-width: 140px; object-fit: contain; }
+    .sidebar-brand-title { font-size: 0.75rem; color: #94a3b8; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 
-    /* Navigation Bar */
-    .nav-tabs { background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 0 1.5rem; display: flex; gap: 1.5rem; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
-    .nav-tab-item { flex-shrink: 0; }
-    .nav-tab-item { padding: 1rem 0; text-decoration: none; color: #64748b; font-weight: 700; font-size: 0.95rem; border-bottom: 3px solid transparent; transition: 0.2s; }
-    .nav-tab-item:hover { color: #003366; }
-    .nav-tab-item.active { color: #003366; border-bottom-color: #003366; }
+    .sidebar-user { padding: 1rem 1.25rem; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 0.8rem; }
+    .sidebar-user-name { font-weight: 800; color: #ffffff; display: flex; align-items: center; justify-content: space-between; }
+    .sidebar-user-role { font-size: 0.7rem; font-weight: 800; padding: 0.15rem 0.45rem; border-radius: 4px; display: inline-block; margin-top: 0.35rem; }
+
+    .sidebar-nav { flex: 1; padding: 1rem 0.75rem; overflow-y: auto; }
+    .nav-group-title { font-size: 0.68rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; padding: 0.75rem 0.75rem 0.35rem 0.75rem; margin-top: 0.5rem; }
+    .sidebar-nav-item { display: flex; align-items: center; gap: 0.65rem; padding: 0.65rem 0.85rem; color: #cbd5e1; text-decoration: none; font-weight: 700; font-size: 0.86rem; border-radius: 8px; transition: all 0.15s ease; margin-bottom: 0.2rem; }
+    .sidebar-nav-item:hover { background: rgba(255,255,255,0.08); color: #ffffff; transform: translateX(3px); }
+    .sidebar-nav-item.active { background: linear-gradient(135deg, #0284c7 0%, #003366 100%); color: #ffffff; font-weight: 800; box-shadow: 0 4px 10px rgba(2,132,199,0.3); }
+    .sidebar-nav-item .badge-count { margin-left: auto; font-size: 0.7rem; background: rgba(255,255,255,0.15); padding: 0.15rem 0.45rem; border-radius: 99px; }
+
+    .sidebar-footer { padding: 1rem 1.25rem; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.2); }
+    .btn-sidebar-logout { display: block; text-align: center; background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); padding: 0.55rem; border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 800; transition: 0.2s; }
+    .btn-sidebar-logout:hover { background: #ef4444; color: #ffffff; }
+
+    /* Main Canvas */
+    .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-x: hidden; }
+    
+    /* Topbar compacta */
+    .topbar-compact { background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 0.85rem 1.75rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; position: sticky; top: 0; z-index: 990; }
+    .topbar-title { font-size: 1.1rem; font-weight: 800; color: #003366; display: flex; align-items: center; gap: 0.5rem; }
+    .btn-mobile-menu { display: none; background: none; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 1.1rem; cursor: pointer; color: #003366; }
 
     /* Container */
-    .container { max-width: 98%; width: 100%; margin: 1.5rem auto; padding: 0 1.5rem; }
+    .container { max-width: 98%; width: 100%; margin: 1.5rem auto; padding: 0 1.5rem; flex: 1; }
+
+    @media (max-width: 1024px) {
+      .sidebar { position: fixed; left: -280px; transition: left 0.3s ease; }
+      .sidebar.open { left: 0; }
+      .btn-mobile-menu { display: inline-flex; }
+    }
 
     /* Metric Cards */
     .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
@@ -1344,16 +1412,14 @@ $scans_list = $db->query("
 </head>
 <body>
 
-  <!-- Topbar -->
-  <header class="topbar">
-    <div class="topbar-brand">
-      <img src="../assets/images/logo-keystone-white.png" alt="Keystone Advisors">
-      <span>Consola de Operaciones & Telemetría B2B</span>
-    </div>
-    <div class="topbar-user">
-      <div id="waGlobalMonitor" style="display:flex; align-items:center; gap:0.5rem; background:rgba(255,255,255,0.08); padding:0.35rem 0.75rem; border-radius:6px; border:1px solid rgba(255,255,255,0.15); font-size:0.8rem; cursor:pointer;" onclick="checkGlobalWhatsAppHealth()" title="Canal Central WhatsApp Keystone: clic para verificar estado">
-        <span id="waGlobalDot" style="width:9px; height:9px; border-radius:50%; background:#10b981; display:inline-block; box-shadow:0 0 8px #10b981;"></span>
-        <span id="waGlobalText" style="font-weight:700; color:#e2e8f0;">WhatsApp: Conectado</span>
+  <!-- Shell con Sidebar Vertical (SOL-0188) -->
+  <div class="app-shell">
+    
+    <!-- Sidebar Vertical Fijo -->
+    <aside class="sidebar" id="appSidebar">
+      <div class="sidebar-brand">
+        <img src="../assets/images/logo-keystone-white.png" alt="Keystone Advisors">
+        <span class="sidebar-brand-title">Control Suite</span>
       </div>
 
       <?php
@@ -1364,59 +1430,145 @@ $scans_list = $db->query("
         ];
         $rb = $role_badges[$current_admin_role] ?? ["label" => strtoupper($current_admin_role), "color" => "#e2e8f0", "bg" => "rgba(255,255,255,0.15)"];
       ?>
-      <div style="display:inline-flex; align-items:center; gap:0.4rem; background:rgba(255,255,255,0.06); padding:0.3rem 0.65rem; border-radius:6px; border:1px solid rgba(255,255,255,0.12);">
-        <span style="font-size:0.82rem; color:#cbd5e1;">👤 <strong><?php echo htmlspecialchars($_SESSION["admin_name"] ?? $_SESSION["admin_user"]); ?></strong></span>
-        <span style="font-size:0.72rem; font-weight:800; text-transform:uppercase; padding:0.15rem 0.5rem; border-radius:4px; color:<?php echo $rb["color"]; ?>; background:<?php echo $rb["bg"]; ?>; border:1px solid <?php echo $rb["color"]; ?>;"><?php echo $rb["label"]; ?></span>
+      <div class="sidebar-user">
+        <div class="sidebar-user-name">
+          <span>👤 <?php echo htmlspecialchars($_SESSION["admin_name"] ?? $_SESSION["admin_user"]); ?></span>
+        </div>
+        <span class="sidebar-user-role" style="color:<?php echo $rb["color"]; ?>; background:<?php echo $rb["bg"]; ?>; border:1px solid <?php echo $rb["color"]; ?>;">
+          <?php echo $rb["label"]; ?>
+        </span>
       </div>
 
-      <a href="index.php?action=logout" class="btn-logout">Cerrar Sesión</a>
-    </div>
-  </header>
+      <nav class="sidebar-nav">
+        
+        <!-- Grupo 1: Operaciones & Clientes -->
+        <div class="nav-group-title">📊 Operaciones & Telemetría</div>
 
-  <!-- Navigation Tabs Reactivos a RBAC -->
-  <nav class="nav-tabs">
-    <?php if (canAccessTab("dashboard", $current_admin_role, $rbac_allowed_tabs)): ?>
-      <a href="index.php?tab=dashboard" class="nav-tab-item <?php echo $tab === "dashboard" ? "active" : ""; ?>">📊 Telemetría & Embudo</a>
-    <?php endif; ?>
+        <?php if (canAccessTab("dashboard", $current_admin_role, $rbac_allowed_tabs)): ?>
+          <a href="index.php?tab=dashboard" class="sidebar-nav-item <?php echo $tab === "dashboard" ? "active" : ""; ?>">
+            <span>📊</span> Telemetría & Embudo
+          </a>
+        <?php endif; ?>
 
-    <?php if (canAccessTab("leads", $current_admin_role, $rbac_allowed_tabs)): ?>
-      <a href="index.php?tab=leads" class="nav-tab-item <?php echo $tab === "leads" ? "active" : ""; ?>">💼 Gestión de Leads (<?php echo $total_leads; ?>)</a>
-    <?php endif; ?>
+        <?php if (canAccessTab("leads", $current_admin_role, $rbac_allowed_tabs)): ?>
+          <a href="index.php?tab=leads" class="sidebar-nav-item <?php echo $tab === "leads" ? "active" : ""; ?>">
+            <span>💼</span> Gestión de Leads
+            <span class="badge-count"><?php echo $total_leads; ?></span>
+          </a>
+        <?php endif; ?>
 
-    <?php if (canAccessTab("scans", $current_admin_role, $rbac_allowed_tabs)): ?>
-      <a href="index.php?tab=scans" class="nav-tab-item <?php echo $tab === "scans" ? "active" : ""; ?>">🛡️ Escaneos Ciberseguridad (<?php echo $total_scans; ?>)</a>
-    <?php endif; ?>
+        <?php if (canAccessTab("replies", $current_admin_role, $rbac_allowed_tabs)): ?>
+          <a href="index.php?tab=replies" class="sidebar-nav-item <?php echo $tab === "replies" ? "active" : ""; ?>">
+            <span>📬</span> Respuestas Clientes
+            <span class="badge-count"><?php echo $total_replies; ?></span>
+          </a>
+        <?php endif; ?>
 
-    <?php if (canAccessTab("replies", $current_admin_role, $rbac_allowed_tabs)): ?>
-      <a href="index.php?tab=replies" class="nav-tab-item <?php echo $tab === "replies" ? "active" : ""; ?>">📬 Respuestas Clientes (<?php echo $total_replies; ?>)</a>
-    <?php endif; ?>
+        <!-- Grupo 2: Ciberseguridad & Riesgo -->
+        <div class="nav-group-title">🛡️ Ciberseguridad & Riesgo</div>
 
-    <?php if (canAccessTab("treasury", $current_admin_role, $rbac_allowed_tabs)): ?>
-      <a href="index.php?tab=treasury" class="nav-tab-item <?php echo $tab === "treasury" ? "active" : ""; ?>">🛡️ DeepShield Tesorería</a>
-    <?php endif; ?>
+        <?php if (canAccessTab("scans", $current_admin_role, $rbac_allowed_tabs)): ?>
+          <a href="index.php?tab=scans" class="sidebar-nav-item <?php echo $tab === "scans" ? "active" : ""; ?>">
+            <span>🛡️</span> Escaneos Web
+            <span class="badge-count"><?php echo $total_scans; ?></span>
+          </a>
+        <?php endif; ?>
 
-    <?php if (canAccessTab("dmarc", $current_admin_role, $rbac_allowed_tabs)): ?>
-      <a href="index.php?tab=dmarc" class="nav-tab-item <?php echo $tab === "dmarc" ? "active" : ""; ?>">📡 DMARC Watchdog</a>
-    <?php endif; ?>
+        <?php if (canAccessTab("treasury", $current_admin_role, $rbac_allowed_tabs)): ?>
+          <a href="index.php?tab=treasury" class="sidebar-nav-item <?php echo $tab === "treasury" ? "active" : ""; ?>">
+            <span>🏦</span> DeepShield Tesorería
+          </a>
+        <?php endif; ?>
 
-    <?php if (canAccessTab("redteaming", $current_admin_role, $rbac_allowed_tabs)): ?>
-      <a href="index.php?tab=redteaming" class="nav-tab-item <?php echo $tab === "redteaming" ? "active" : ""; ?>">🎭 Red Teaming IA</a>
-    <?php endif; ?>
+        <?php if (canAccessTab("dmarc", $current_admin_role, $rbac_allowed_tabs)): ?>
+          <a href="index.php?tab=dmarc" class="sidebar-nav-item <?php echo $tab === "dmarc" ? "active" : ""; ?>">
+            <span>📡</span> DMARC Watchdog
+          </a>
+        <?php endif; ?>
 
-    <?php if (canAccessTab("marketing", $current_admin_role, $rbac_allowed_tabs)): ?>
-      <a href="index.php?tab=marketing" class="nav-tab-item <?php echo $tab === "marketing" ? "active" : ""; ?>">📈 Growth & Marketing IA</a>
-    <?php endif; ?>
+        <?php if (canAccessTab("redteaming", $current_admin_role, $rbac_allowed_tabs)): ?>
+          <a href="index.php?tab=redteaming" class="sidebar-nav-item <?php echo $tab === "redteaming" ? "active" : ""; ?>">
+            <span>🎭</span> Red Teaming IA
+          </a>
+        <?php endif; ?>
 
-    <?php if (canAccessTab("smtp", $current_admin_role, $rbac_allowed_tabs)): ?>
-      <a href="index.php?tab=smtp" class="nav-tab-item <?php echo $tab === "smtp" ? "active" : ""; ?>">✉️ Configuración SMTP Titan</a>
-    <?php endif; ?>
+        <!-- Grupo 3: Growth & Marketing IA -->
+        <div class="nav-group-title">📈 Growth & Marketing IA</div>
 
-    <?php if ($current_admin_role === "superadmin"): ?>
-      <a href="index.php?tab=users" class="nav-tab-item <?php echo $tab === "users" ? "active" : ""; ?>" style="color:#f59e0b; border-left:1px solid #cbd5e1; padding-left:1rem;">👥 Usuarios & Roles</a>
-    <?php endif; ?>
-  </nav>
+        <?php if (canAccessTab("marketing", $current_admin_role, $rbac_allowed_tabs)): ?>
+          <a href="index.php?tab=marketing" class="sidebar-nav-item <?php echo $tab === "marketing" ? "active" : ""; ?>">
+            <span>📈</span> Campañas & Growth
+          </a>
+        <?php endif; ?>
 
-  <main class="container">
+        <?php if (canAccessTab("integrations", $current_admin_role, $rbac_allowed_tabs)): ?>
+          <a href="index.php?tab=integrations" class="sidebar-nav-item <?php echo $tab === "integrations" ? "active" : ""; ?>">
+            <span>🔌</span> Conexiones & Health Check
+          </a>
+        <?php endif; ?>
+
+        <!-- Grupo 4: Configuración & Gobierno -->
+        <div class="nav-group-title">⚙️ Sistema & Gobierno</div>
+
+        <?php if (canAccessTab("smtp", $current_admin_role, $rbac_allowed_tabs)): ?>
+          <a href="index.php?tab=smtp" class="sidebar-nav-item <?php echo $tab === "smtp" ? "active" : ""; ?>">
+            <span>✉️</span> SMTP Titan Mail
+          </a>
+        <?php endif; ?>
+
+        <?php if ($current_admin_role === "superadmin"): ?>
+          <a href="index.php?tab=users" class="sidebar-nav-item <?php echo $tab === "users" ? "active" : ""; ?>" style="color:#f59e0b;">
+            <span>👥</span> Usuarios & Roles
+          </a>
+        <?php endif; ?>
+
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="index.php?action=logout" class="btn-sidebar-logout">🚪 Cerrar Sesión</a>
+      </div>
+    </aside>
+
+    <!-- Canvas Principal -->
+    <div class="app-main">
+      
+      <!-- Topbar Compacta Superior -->
+      <header class="topbar-compact">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <button type="button" class="btn-mobile-menu" onclick="document.getElementById('appSidebar').classList.toggle('open');">☰</button>
+          <div class="topbar-title">
+            <?php
+              $tab_titles = [
+                'dashboard' => '📊 Telemetría & Embudo de Conversión',
+                'leads' => '💼 Gestión Comercial de Leads B2B',
+                'scans' => '🛡️ Escaneos de Seguridad Web',
+                'replies' => '📬 Respuestas de Clientes (Titan Mail IMAP)',
+                'treasury' => '🏦 DeepShield Pre-Transfer Verification',
+                'dmarc' => '📡 DMARC Watchdog & Inteligencia Anti-Spoofing',
+                'redteaming' => '🎭 Red Teaming B2B Asistido por IA',
+                'marketing' => '📈 Keystone Growth Engine & Marketing IA',
+                'integrations' => '🔌 Integraciones, Credenciales & Health Check',
+                'smtp' => '✉️ Configuración de Despacho SMTP Titan',
+                'users' => '👥 Control de Acceso RBAC & Operadores'
+              ];
+              echo $tab_titles[$tab] ?? 'Centro de Control';
+            ?>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <div id="waGlobalMonitor" style="display:flex; align-items:center; gap:0.45rem; background:#f1f5f9; padding:0.35rem 0.75rem; border-radius:6px; border:1px solid #cbd5e1; font-size:0.78rem; cursor:pointer;" onclick="checkGlobalWhatsAppHealth()" title="Canal Central WhatsApp Keystone: clic para verificar estado">
+            <span id="waGlobalDot" style="width:8px; height:8px; border-radius:50%; background:#10b981; display:inline-block; box-shadow:0 0 6px #10b981;"></span>
+            <span id="waGlobalText" style="font-weight:700; color:#334155;">WhatsApp Activo</span>
+          </div>
+
+          <a href="index.php?tab=integrations" style="display:flex; align-items:center; gap:0.35rem; background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; text-decoration:none; padding:0.35rem 0.65rem; border-radius:6px; font-size:0.78rem; font-weight:700;">
+            <span>⚡</span> Servicios IA
+          </a>
+        </div>
+      </header>
+
+      <main class="container">
 
     <?php if ($tab === 'dashboard'): ?>
       <!-- Dashboard & Analytics View -->
@@ -4276,11 +4428,20 @@ $scans_list = $db->query("
               </div>
               <input type="text" id="li_built_utm_url" readonly style="width:100%; padding:0.55rem; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; color:#0369a1; font-family:monospace;">
               
-              <div style="margin-top:0.75rem; display:flex; align-items:center; gap:0.6rem;">
-                <input type="checkbox" id="li_gen_banner" checked style="cursor:pointer;">
-                <label for="li_gen_banner" style="font-weight:700; font-size:0.82rem; color:#334155; cursor:pointer;">
-                  Diseñar Banner Visual Corporativo con Cloudflare FLUX.1 (1024x1024 px)
-                </label>
+              <div style="margin-top:0.75rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem;">
+                <div style="display:flex; align-items:center; gap:0.6rem;">
+                  <input type="checkbox" id="li_gen_banner" checked style="cursor:pointer;">
+                  <label for="li_gen_banner" style="font-weight:700; font-size:0.82rem; color:#334155; cursor:pointer;">
+                    Diseñar Banner Visual Corporativo (1024x1024 px)
+                  </label>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.4rem;">
+                  <label for="li_image_engine" style="font-size:0.78rem; font-weight:700; color:#475569;">Motor de Imagen:</label>
+                  <select id="li_image_engine" style="padding:0.35rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; font-weight:600; color:#0f172a;">
+                    <option value="flux" selected>⚡ Cloudflare FLUX.1 (Ultra Rápido, $0 USD)</option>
+                    <option value="gemini">🧠 Google AI Studio (Gemini Flash Image / Nano Banana)</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -4328,9 +4489,15 @@ $scans_list = $db->query("
 
                   <!-- Caja Desplegable de Instrucciones para Regenerar -->
                   <div id="liRegenControls" style="display:none; background:#1e293b; border:1px solid #475569; border-radius:6px; padding:0.75rem; text-align:left;">
-                    <label style="display:block; font-size:0.72rem; color:#94a3b8; font-weight:700; margin-bottom:0.35rem;">
-                      Indicaciones de mejora para la IA (ej: "más minimalista, vista isométrica 3D, sin personas, destacar logo azul"):
-                    </label>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                      <label style="font-size:0.72rem; color:#94a3b8; font-weight:700;">
+                        Indicaciones de mejora para la IA (ej: "más minimalista, vista isométrica 3D, destacar logo azul"):
+                      </label>
+                      <select id="li_regen_engine" style="padding:0.2rem 0.4rem; border:1px solid #64748b; border-radius:4px; font-size:0.72rem; background:#0f172a; color:#f8fafc;">
+                        <option value="flux" selected>Motor: Cloudflare FLUX.1</option>
+                        <option value="gemini">Motor: Google AI Studio</option>
+                      </select>
+                    </div>
                     <input type="text" id="li_regen_instructions" placeholder="Escribe aquí las correcciones o estilo deseado..." style="width:100%; padding:0.45rem; border:1px solid #64748b; border-radius:4px; font-size:0.78rem; background:#0f172a; color:#f8fafc; margin-bottom:0.5rem;">
                     
                     <button type="button" id="btnLiRegen" onclick="executeBannerRegeneration('li');" style="width:100%; background:#0284c7; color:#fff; border:none; padding:0.5rem; border-radius:4px; font-size:0.78rem; font-weight:800; cursor:pointer;">
@@ -4443,12 +4610,21 @@ $scans_list = $db->query("
               </div>
             </div>
 
-            <!-- Fila 3: Generación de Banner Visual FLUX.1 -->
+            <!-- Fila 3: Generación de Banner Visual -->
             <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1.25rem;">
-              <label style="display:flex; align-items:center; gap:0.5rem; font-weight:700; font-size:0.85rem; color:#0f172a; cursor:pointer;">
-                <input type="checkbox" id="ai_generate_banner" name="generate_banner" value="1" checked>
-                Generar también Banner Visual de Alta Resolución con Cloudflare Workers AI (FLUX.1 Schnell)
-              </label>
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:700; font-size:0.85rem; color:#0f172a; cursor:pointer;">
+                  <input type="checkbox" id="ai_generate_banner" name="generate_banner" value="1" checked>
+                  Generar también Banner Visual Corporativo (1024x1024)
+                </label>
+                <div style="display:flex; align-items:center; gap:0.4rem;">
+                  <label for="ai_image_engine" style="font-size:0.78rem; font-weight:700; color:#475569;">Motor de Imagen:</label>
+                  <select id="ai_image_engine" name="image_engine" style="padding:0.35rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; background:#fff; font-weight:600; color:#0f172a;">
+                    <option value="flux" selected>⚡ Cloudflare FLUX.1 (Ultra Rápido, $0 USD)</option>
+                    <option value="gemini">🧠 Google AI Studio (Gemini Flash Image / Nano Banana)</option>
+                  </select>
+                </div>
+              </div>
               <div id="boxCustomImagePrompt" style="margin-top:0.6rem;">
                 <label style="display:block; font-size:0.75rem; color:#64748b; margin-bottom:0.25rem;">
                   Detalle estilístico o enfoque visual adicional (opcional):
@@ -4483,9 +4659,15 @@ $scans_list = $db->query("
 
               <!-- Caja de Instrucciones para Regenerar en Generador Multicanal -->
               <div id="boxAiRegenInput" style="display:none; background:#1e293b; border:1px solid #475569; border-radius:8px; padding:1rem; max-width:600px; margin:0 auto; text-align:left;">
-                <label style="display:block; font-size:0.78rem; color:#94a3b8; font-weight:700; margin-bottom:0.35rem;">
-                  Nuevas indicaciones de estilo o correcciones para FLUX.1:
-                </label>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                  <label style="font-size:0.78rem; color:#94a3b8; font-weight:700;">
+                    Nuevas indicaciones de estilo o correcciones:
+                  </label>
+                  <select id="ai_regen_engine" style="padding:0.25rem 0.5rem; border:1px solid #64748b; border-radius:4px; font-size:0.75rem; background:#0f172a; color:#f8fafc;">
+                    <option value="flux" selected>Motor: Cloudflare FLUX.1</option>
+                    <option value="gemini">Motor: Google AI Studio</option>
+                  </select>
+                </div>
                 <input type="text" id="ai_regen_instructions" placeholder="Ej: dramatic dark lighting, modern fintech holographic glass, ultra realistic" style="width:100%; padding:0.55rem; border:1px solid #64748b; border-radius:6px; font-size:0.82rem; background:#0f172a; color:#f8fafc; margin-bottom:0.6rem;">
                 <button type="button" id="btnAiRegenMulti" onclick="executeBannerRegeneration('multi');" style="width:100%; background:#0284c7; color:#fff; border:none; padding:0.65rem; border-radius:6px; font-size:0.85rem; font-weight:800; cursor:pointer;">
                   ⚡ Regenerar Banner Ahora con estas Indicaciones
@@ -4854,7 +5036,9 @@ $scans_list = $db->query("
           fd.append("target_platform", "linkedin_company");
           fd.append("campaign_goal", document.getElementById("li_goal").value);
           fd.append("target_audience", document.getElementById("li_audience").value);
+          const liEngine = document.getElementById("li_image_engine") ? document.getElementById("li_image_engine").value : "flux";
           fd.append("generate_banner", document.getElementById("li_gen_banner").checked ? "1" : "0");
+          fd.append("image_engine", liEngine);
           fd.append("visual_prompt", "Corporate B2B high-end LinkedIn banner for " + theme + ", blue navy #003366 and electric cyan accents");
 
           try {
@@ -5011,6 +5195,7 @@ $scans_list = $db->query("
           let instructions = "";
           let tenantSlug = "keystone_deepshield";
           let topic = "Ciberseguridad Corporativa";
+          let engine = "flux";
 
           if (source === "li") {
             btn = document.getElementById("btnLiRegen");
@@ -5018,28 +5203,36 @@ $scans_list = $db->query("
             const theme = document.getElementById("li_theme").value;
             tenantSlug = (theme === "sinnotario" || theme === "keyhub") ? theme : ("keystone_" + theme);
             topic = document.getElementById("li_goal").value;
+            const engSel = document.getElementById("li_regen_engine");
+            if (engSel) engine = engSel.value;
           } else {
             btn = document.getElementById("btnAiRegenMulti");
             instructions = document.getElementById("ai_regen_instructions").value.trim();
             tenantSlug = document.getElementById("ai_tenant_id").value;
             topic = document.getElementById("ai_campaign_goal").value;
+            const engSel = document.getElementById("ai_regen_engine");
+            if (engSel) engine = engSel.value;
           }
 
           const orig = btn.innerHTML;
           btn.disabled = true;
-          btn.innerHTML = "Generando nueva imagen con FLUX.1... ⏳";
+          btn.innerHTML = "Generando nueva imagen con IA (" + (engine === 'gemini' ? 'Google Gemini' : 'FLUX.1') + ")... ⏳";
 
           const fd = new FormData();
           fd.append("action", "growth_regenerate_banner");
           fd.append("tenant_slug", tenantSlug);
           fd.append("topic", topic);
           fd.append("custom_instructions", instructions);
+          fd.append("image_engine", engine);
 
           try {
             const res = await fetch("index.php", { method: "POST", body: fd });
             const data = await res.json();
 
             if (data.success && data.image_url) {
+              if (data.notice) {
+                alert("Aviso: " + data.notice);
+              }
               if (source === "li") {
                 document.getElementById("liBannerPreviewImg").src = data.image_url;
                 document.getElementById("liBannerPreviewLink").href = data.image_url;
@@ -5051,7 +5244,7 @@ $scans_list = $db->query("
                 document.getElementById("boxAiRegenInput").style.display = "none";
               }
             } else {
-              alert("Error al regenerar imagen: " + (data.error || "Fallo en motor FLUX.1"));
+              alert("Error al regenerar imagen: " + (data.error || "Fallo en motor de imagen"));
             }
           } catch(err) {
             alert("Error de conexión: " + err.message);
@@ -5070,26 +5263,32 @@ $scans_list = $db->query("
           const btn = document.getElementById("btn_post_regen_" + idx);
           const promptInp = document.getElementById("post_regen_prompt_" + idx);
           const instructions = promptInp.value.trim();
+          const engSel = document.getElementById("post_regen_engine_" + idx);
+          const engine = engSel ? engSel.value : "flux";
           const orig = btn.innerHTML;
 
           btn.disabled = true;
-          btn.innerHTML = "Generando con FLUX... ⏳";
+          btn.innerHTML = "Generando con IA (" + (engine === 'gemini' ? 'Google' : 'FLUX') + ")... ⏳";
 
           const fd = new FormData();
           fd.append("action", "growth_regenerate_banner");
           fd.append("tenant_slug", _cpCurrentBatch.tenant_slug);
           fd.append("topic", _cpCurrentBatch.posts[idx].post_title + " - " + _cpCurrentBatch.topic);
           fd.append("custom_instructions", instructions);
+          fd.append("image_engine", engine);
 
           try {
             const res = await fetch("index.php", { method: "POST", body: fd });
             const data = await res.json();
 
             if (data.success && data.image_url) {
+              if (data.notice) {
+                alert("Aviso: " + data.notice);
+              }
               _cpCurrentBatch.posts[idx].banner_image_url = data.image_url;
               document.getElementById("post_img_preview_box_" + idx).innerHTML = 
                 `<img src="${data.image_url}" style="width:50px; height:50px; object-fit:cover; border-radius:6px; border:1px solid #cbd5e1; cursor:pointer;" onclick="window.open('${data.image_url}', '_blank');">`;
-              document.getElementById("post_img_status_" + idx).innerHTML = "<span style='color:#16a34a; font-weight:700;'>✓ Imagen Actualizada</span>";
+              document.getElementById("post_img_status_" + idx).innerHTML = "<span style='color:#16a34a; font-weight:700;'>✓ Imagen Actualizada (" + (data.model_used || engine) + ")</span>";
               document.getElementById("post_regen_box_" + idx).style.display = "none";
             } else {
               alert("Error al generar imagen para este post: " + (data.error || "Fallo en motor"));
@@ -5262,9 +5461,15 @@ $scans_list = $db->query("
                   </div>
 
                   <div id="post_regen_box_${idx}" style="display:none; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid #e2e8f0;">
-                    <label style="display:block; font-size:0.72rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">
-                      Indicaciones específicas para la imagen de este post (ej: "gráfico financiero de pérdidas BEC, estilo 3D cian"):
-                    </label>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+                      <label style="font-size:0.72rem; font-weight:700; color:#475569;">
+                        Indicaciones específicas para la imagen de este post:
+                      </label>
+                      <select id="post_regen_engine_${idx}" style="padding:0.2rem 0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.72rem; background:#fff; color:#0f172a;">
+                        <option value="flux" selected>Motor: Cloudflare FLUX.1</option>
+                        <option value="gemini">Motor: Google AI Studio</option>
+                      </select>
+                    </div>
                     <div style="display:flex; gap:0.5rem;">
                       <input type="text" id="post_regen_prompt_${idx}" value="${item.visual_prompt || ''}" placeholder="Instrucciones visuales..." style="flex:1; padding:0.45rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem;">
                       <button type="button" id="btn_post_regen_${idx}" onclick="executePostBannerRegen(${idx});" style="background:#059669; color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; font-size:0.78rem; font-weight:800; cursor:pointer; white-space:nowrap;">
@@ -5487,6 +5692,287 @@ $scans_list = $db->query("
         }
 
       </script>
+
+    <?php elseif ($tab === 'integrations'): ?>
+      <?php
+        require_once __DIR__ . '/../api/KeystoneGrowthService.php';
+        $health = KeystoneGrowthService::checkIntegrationsHealth();
+        $dbMkt = KeystoneGrowthService::getDb();
+        
+        $gAiKey = KeystoneGrowthService::getGoogleApiKey();
+        $groqKey = KeystoneGrowthService::getGroqApiKey();
+        $cfAcc = KeystoneGrowthService::getCfAccountId();
+        $cfToken = KeystoneGrowthService::getCfAiToken();
+
+        $gCustId = KeystoneGrowthService::getSetting('google_ads_customer_id', '396-771-8344');
+        $liClientId = KeystoneGrowthService::getSetting('linkedin_client_id', '77gaerf3okng9m');
+        $liClientSecret = KeystoneGrowthService::getSetting('linkedin_client_secret', 'WPL_AP1.wjwgqTxS7FVRqWFY.ZKULxA==');
+        $liOrgId = KeystoneGrowthService::getSetting('linkedin_org_id', '105863140');
+        $liToken = KeystoneGrowthService::getSetting('linkedin_access_token', '');
+        $liExpires = (int)KeystoneGrowthService::getSetting('linkedin_token_expires_at', '0');
+        $liMemberUrn = KeystoneGrowthService::getSetting('linkedin_member_urn', 'urn:li:person:By05C_evAt');
+      ?>
+
+      <div style="max-width: 1200px; margin: 0 auto;">
+        
+        <?php if (isset($_GET['saved'])): ?>
+          <div style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; padding:1rem 1.25rem; border-radius:8px; margin-bottom:1.5rem; font-weight:700;">
+            ✓ ¡Credenciales actualizadas exitosamente en la base de datos de marketing! Los servicios se reconectarán automáticamente.
+          </div>
+        <?php endif; ?>
+
+        <!-- Encabezado de la Pestaña -->
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+          <div>
+            <h2 style="font-size:1.6rem; font-weight:800; color:#003366; margin:0 0 0.35rem 0;">
+              🔌 Integraciones, Credenciales & Health Check
+            </h2>
+            <p style="font-size:0.9rem; color:#64748b; margin:0;">
+              Supervisión en vivo de motores de IA, tokens OAuth y APIs para el ecosistema de marketing y ventas de Keystone Advisors.
+            </p>
+          </div>
+          <button type="button" onclick="runHealthCheckNow();" id="btnRunHealth" style="background:#0284c7; color:#fff; border:none; padding:0.65rem 1.25rem; border-radius:8px; font-weight:700; font-size:0.88rem; cursor:pointer; display:flex; align-items:center; gap:0.5rem; box-shadow:0 4px 12px rgba(2,132,199,0.25);">
+            <span>🔄</span> Probar Conexión en Vivo
+          </button>
+        </div>
+
+        <!-- Matriz de Estado en Vivo (Health Cards) -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1rem; margin-bottom:2rem;">
+          
+          <!-- Card Groq -->
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+              <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">⚡ Groq Cloud LPU</span>
+              <span id="badge_groq" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['groq']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
+                <?php echo strtoupper($health['groq']['status']); ?>
+              </span>
+            </div>
+            <div id="msg_groq" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
+              <?php echo htmlspecialchars($health['groq']['message']); ?>
+            </div>
+            <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
+              Modelo: <code>qwen/qwen3.8-27b</code> (Tier 1 Copywriter)
+            </div>
+          </div>
+
+          <!-- Card Cloudflare FLUX.1 -->
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+              <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">🖼️ Cloudflare FLUX.1</span>
+              <span id="badge_cloudflare" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['cloudflare']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
+                <?php echo strtoupper($health['cloudflare']['status']); ?>
+              </span>
+            </div>
+            <div id="msg_cloudflare" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
+              <?php echo htmlspecialchars($health['cloudflare']['message']); ?>
+            </div>
+            <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
+              Motor: Workers AI Schnell (1024x1024 px)
+            </div>
+          </div>
+
+          <!-- Card Google AI Studio -->
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+              <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">🧠 Google AI Studio</span>
+              <span id="badge_google_ai" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['google_ai']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : ($health['google_ai']['status'] === 'warning' ? '#fef3c7; color:#92400e;' : '#fee2e2; color:#b91c1c;'); ?>">
+                <?php echo strtoupper($health['google_ai']['status']); ?>
+              </span>
+            </div>
+            <div id="msg_google_ai" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
+              <?php echo htmlspecialchars($health['google_ai']['message']); ?>
+            </div>
+            <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
+              Gemini 2.5 Flash / Flash Image (Nano Banana)
+            </div>
+          </div>
+
+          <!-- Card LinkedIn Empresa -->
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+              <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">💼 LinkedIn Empresa</span>
+              <span id="badge_linkedin" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['linkedin']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
+                <?php echo strtoupper($health['linkedin']['status']); ?>
+              </span>
+            </div>
+            <div id="msg_linkedin" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
+              <?php echo htmlspecialchars($health['linkedin']['message']); ?>
+            </div>
+            <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
+              Org ID: <code><?php echo htmlspecialchars($liOrgId); ?></code> (REST v202610)
+            </div>
+          </div>
+
+          <!-- Card Google Ads -->
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+              <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">🔍 Google Ads</span>
+              <span id="badge_google_ads" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['google_ads']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : ($health['google_ads']['status'] === 'warning' ? '#fef3c7; color:#92400e;' : '#f1f5f9; color:#475569;'); ?>">
+                <?php echo strtoupper($health['google_ads']['status']); ?>
+              </span>
+            </div>
+            <div id="msg_google_ads" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
+              <?php echo htmlspecialchars($health['google_ads']['message']); ?>
+            </div>
+            <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
+              Customer ID: <code><?php echo htmlspecialchars($gCustId); ?></code>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Formulario Maestro de Configuración y Claves -->
+        <div class="funnel-box" style="margin-bottom:2rem;">
+          <h3 style="color:#003366; font-size:1.15rem; margin-bottom:0.5rem;">⚙️ Configuración y Edición de Credenciales</h3>
+          <p style="font-size:0.85rem; color:#64748b; margin-bottom:1.5rem;">
+            Actualice las API Keys y tokens de servicio directamente. Los valores se almacenan cifrados en la base de datos interna y tienen precedencia inmediata.
+          </p>
+
+          <form method="POST" action="index.php">
+            <input type="hidden" name="action" value="save_marketing_credentials">
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+              
+              <!-- Bloque Google AI Studio -->
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1.25rem;">
+                <h4 style="font-size:0.95rem; color:#003366; margin:0 0 0.5rem 0;">🧠 Google AI Studio API Key</h4>
+                <p style="font-size:0.78rem; color:#64748b; margin:0 0 0.75rem 0;">
+                  Utilizada para Gemini 2.5 Flash / Gemini Image. Puede obtenerla o recargar créditos en <a href="https://ai.studio/projects" target="_blank" style="color:#0284c7; font-weight:700;">ai.studio</a>.
+                </p>
+                <input type="password" name="google_ai_api_key" value="<?php echo htmlspecialchars($gAiKey); ?>" placeholder="AIzaSy... o AQ.Ab8..." style="width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; font-family:monospace; background:#fff;">
+              </div>
+
+              <!-- Bloque Groq Cloud LPU -->
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1.25rem;">
+                <h4 style="font-size:0.95rem; color:#003366; margin:0 0 0.5rem 0;">⚡ Groq Cloud API Key</h4>
+                <p style="font-size:0.78rem; color:#64748b; margin:0 0 0.75rem 0;">
+                  Motor Tier 1 para copywriter y planificación editorial ultra rápida a costo $0 USD (<a href="https://console.groq.com/" target="_blank" style="color:#0284c7; font-weight:700;">console.groq.com</a>).
+                </p>
+                <input type="password" name="groq_api_key" value="<?php echo htmlspecialchars($groqKey); ?>" placeholder="gsk_..." style="width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; font-family:monospace; background:#fff;">
+              </div>
+
+              <!-- Bloque Cloudflare Workers AI -->
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1.25rem;">
+                <h4 style="font-size:0.95rem; color:#003366; margin:0 0 0.5rem 0;">🖼️ Cloudflare Workers AI (FLUX.1 Schnell)</h4>
+                <p style="font-size:0.78rem; color:#64748b; margin:0 0 0.75rem 0;">
+                  Generación de banners corporativos 1024x1024 px con el modelo FLUX.1.
+                </p>
+                <div style="margin-bottom:0.6rem;">
+                  <label style="display:block; font-size:0.72rem; color:#475569; font-weight:700; margin-bottom:0.2rem;">Account ID:</label>
+                  <input type="text" name="cf_account_id" value="<?php echo htmlspecialchars($cfAcc); ?>" placeholder="cf964188..." style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; font-family:monospace; background:#fff;">
+                </div>
+                <div>
+                  <label style="display:block; font-size:0.72rem; color:#475569; font-weight:700; margin-bottom:0.2rem;">API Token Workers AI:</label>
+                  <input type="password" name="cf_ai_token" value="<?php echo htmlspecialchars($cfToken); ?>" placeholder="cfut_..." style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; font-family:monospace; background:#fff;">
+                </div>
+              </div>
+
+              <!-- Bloque LinkedIn App & Credentials -->
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1.25rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                  <h4 style="font-size:0.95rem; color:#003366; margin:0;">💼 LinkedIn Developer App & OAuth</h4>
+                  <?php if (!empty($liToken)): ?>
+                    <a href="oauth_linkedin.php?action=connect" style="font-size:0.75rem; background:#0a66c2; color:#fff; text-decoration:none; padding:0.25rem 0.6rem; border-radius:4px; font-weight:700;">Re-autorizar OAuth</a>
+                  <?php else: ?>
+                    <a href="oauth_linkedin.php?action=connect" style="font-size:0.75rem; background:#16a34a; color:#fff; text-decoration:none; padding:0.25rem 0.6rem; border-radius:4px; font-weight:700;">Conectar LinkedIn</a>
+                  <?php endif; ?>
+                </div>
+                <p style="font-size:0.78rem; color:#64748b; margin:0 0 0.75rem 0;">
+                  Publicación oficial en Keystone Advisors Global (ID 105863140).
+                </p>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.5rem;">
+                  <div>
+                    <label style="display:block; font-size:0.72rem; color:#475569; font-weight:700; margin-bottom:0.2rem;">Client ID:</label>
+                    <input type="text" name="linkedin_client_id" value="<?php echo htmlspecialchars($liClientId); ?>" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; font-family:monospace; background:#fff;">
+                  </div>
+                  <div>
+                    <label style="display:block; font-size:0.72rem; color:#475569; font-weight:700; margin-bottom:0.2rem;">Org ID Numérico:</label>
+                    <input type="text" name="linkedin_org_id" value="<?php echo htmlspecialchars($liOrgId); ?>" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; font-family:monospace; background:#fff;">
+                  </div>
+                </div>
+                <div>
+                  <label style="display:block; font-size:0.72rem; color:#475569; font-weight:700; margin-bottom:0.2rem;">Client Secret:</label>
+                  <input type="password" name="linkedin_client_secret" value="<?php echo htmlspecialchars($liClientSecret); ?>" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; font-family:monospace; background:#fff;">
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Fila Google Ads Customer ID -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1.25rem; margin-bottom:1.5rem;">
+              <h4 style="font-size:0.95rem; color:#003366; margin:0 0 0.5rem 0;">🔍 Google Ads Customer ID</h4>
+              <div style="display:flex; gap:1rem; align-items:center;">
+                <input type="text" name="google_ads_customer_id" value="<?php echo htmlspecialchars($gCustId); ?>" placeholder="Ej: 396-771-8344" style="max-width:320px; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; font-family:monospace; background:#fff;">
+                <a href="oauth_google.php?action=connect" style="background:#0284c7; color:#fff; text-decoration:none; padding:0.65rem 1.25rem; border-radius:6px; font-size:0.85rem; font-weight:700;">
+                  🔗 Autorizar Flujo Google OAuth
+                </a>
+              </div>
+            </div>
+
+            <button type="submit" style="background:#003366; color:#ffffff; border:none; padding:0.85rem 2rem; border-radius:8px; font-weight:800; font-size:0.95rem; cursor:pointer; box-shadow:0 4px 12px rgba(0,51,102,0.25);">
+              💾 Guardar Todas las Credenciales
+            </button>
+          </form>
+        </div>
+
+      </div>
+
+      <script>
+        async function runHealthCheckNow() {
+          const btn = document.getElementById("btnRunHealth");
+          const orig = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = "Verificando conexiones... ⏳";
+
+          const fd = new FormData();
+          fd.append("action", "test_integrations_health");
+
+          try {
+            const res = await fetch("index.php", { method: "POST", body: fd });
+            const data = await res.json();
+
+            if (data.success && data.services) {
+              const s = data.services;
+              updateServiceCard("groq", s.groq);
+              updateServiceCard("cloudflare", s.cloudflare);
+              updateServiceCard("google_ai", s.google_ai);
+              updateServiceCard("linkedin", s.linkedin);
+              updateServiceCard("google_ads", s.google_ads);
+              alert("✓ Verificación de servicios completada.");
+            } else {
+              alert("Error al verificar: " + (data.error || "Respuesta inválida"));
+            }
+          } catch (e) {
+            alert("Error de red: " + e.message);
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+          }
+        }
+
+        function updateServiceCard(id, data) {
+          if (!data) return;
+          const badge = document.getElementById("badge_" + id);
+          const msg = document.getElementById("msg_" + id);
+          if (badge) {
+            badge.innerText = data.status.toUpperCase();
+            if (data.status === "ok") {
+              badge.style.background = "#dcfce7";
+              badge.style.color = "#15803d";
+            } else if (data.status === "warning") {
+              badge.style.background = "#fef3c7";
+              badge.style.color = "#92400e";
+            } else {
+              badge.style.background = "#fee2e2";
+              badge.style.color = "#b91c1c";
+            }
+          }
+          if (msg && data.message) {
+            msg.innerText = data.message;
+          }
+        }
+      </script>
+
 
     <?php elseif ($tab === 'smtp'): ?>
       <?php
@@ -6576,9 +7062,11 @@ $scans_list = $db->query("
 
   </main>
 
-  <footer style="text-align:center; padding:2rem; font-size:0.8rem; color:#94a3b8;">
-    &copy; <?php echo date('Y'); ?> Keystone Advisors SpA. Todos los derechos reservados. Consola de Telemetría v1.0 • Entorno Protegido.
-  </footer>
+      <footer style="text-align:center; padding:2rem; font-size:0.8rem; color:#94a3b8;">
+        &copy; <?php echo date('Y'); ?> Keystone Advisors SpA. Todos los derechos reservados. Consola de Telemetría v1.0 • Entorno Protegido.
+      </footer>
+    </div> <!-- /.app-main -->
+  </div> <!-- /.app-shell -->
 
 </body>
 </html>

@@ -12,11 +12,46 @@ class KeystoneGrowthService {
     private static ?PDO $db = null;
     private static string $dbFile = __DIR__ . '/../data/marketing_keystone.sqlite';
 
-    // Credenciales oficiales validadas
-    private static string $googleApiKey = 'AQ.Ab8RN6Kokak-uy_C3-zfgAEpApm5tNiG_4d-pDILVQ4oKuYllA';
-    private static string $cfAccountId = 'cf9641882a84e35bbf80ae7681d7ee71';
-    private static string $cfAiToken = 'cfut_X7T32a3GAFH9iSkdoVkFY4YOc1Vn84RqB178bS6Q3b09495d';
-    private static string $groqApiKey = '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';
+    // Credenciales oficiales validadas (valores por defecto con sobreescritura dinámica en mkt_settings)
+    private static string $googleApiKeyDefault = 'AQ.Ab8RN6Kokak-uy_C3-zfgAEpApm5tNiG_4d-pDILVQ4oKuYllA';
+    private static string $cfAccountIdDefault = 'cf9641882a84e35bbf80ae7681d7ee71';
+    private static string $cfAiTokenDefault = 'cfut_X7T32a3GAFH9iSkdoVkFY4YOc1Vn84RqB178bS6Q3b09495d';
+    private static string $groqApiKeyDefault = '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';
+
+    public static function getSetting(string $key, string $default = ''): string {
+        $db = self::getDb();
+        try {
+            $stmt = $db->prepare("SELECT setting_value FROM mkt_settings WHERE setting_key = ?");
+            $stmt->execute([$key]);
+            $val = $stmt->fetchColumn();
+            return ($val !== false && $val !== null && trim((string)$val) !== '') ? (string)$val : $default;
+        } catch (Throwable $e) {
+            return $default;
+        }
+    }
+
+    public static function setSetting(string $key, string $value): bool {
+        $db = self::getDb();
+        $stmt = $db->prepare("INSERT INTO mkt_settings (setting_key, setting_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+                              ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = CURRENT_TIMESTAMP");
+        return $stmt->execute([$key, $value]);
+    }
+
+    public static function getGoogleApiKey(): string {
+        return self::getSetting('google_ai_api_key', self::$googleApiKeyDefault);
+    }
+
+    public static function getCfAccountId(): string {
+        return self::getSetting('cf_account_id', self::$cfAccountIdDefault);
+    }
+
+    public static function getCfAiToken(): string {
+        return self::getSetting('cf_ai_token', self::$cfAiTokenDefault);
+    }
+
+    public static function getGroqApiKey(): string {
+        return self::getSetting('groq_api_key', self::$groqApiKeyDefault);
+    }
 
     public static function getDb(): PDO {
         if (self::$db === null) {
@@ -316,7 +351,8 @@ class KeystoneGrowthService {
         // =========================================================================
         // PRIMERA OPCIÓN: GROQ CLOUD LPU (Ultra Baja Latencia & Costo $0)
         // =========================================================================
-        if (!empty(self::$groqApiKey)) {
+        $groqKey = self::getGroqApiKey();
+        if (!empty($groqKey)) {
             $groqUrl = "https://api.groq.com/openai/v1/chat/completions";
             $groqPayload = [
                 'model' => 'qwen/qwen3.8-27b',
@@ -330,8 +366,9 @@ class KeystoneGrowthService {
 
             $chG = curl_init($groqUrl);
             curl_setopt($chG, CURLOPT_HTTPHEADER, [
-                'Authorization: Bearer ' . self::$groqApiKey,
-                'Content-Type: application/json'
+                'Authorization: Bearer ' . $groqKey,
+                'Content-Type: application/json',
+                'User-Agent: KeystoneGrowthEngine/1.0'
             ]);
             curl_setopt($chG, CURLOPT_POST, true);
             curl_setopt($chG, CURLOPT_POSTFIELDS, json_encode($groqPayload));
@@ -369,11 +406,12 @@ class KeystoneGrowthService {
         $httpCode = 0;
         $lastError = '';
 
+        $googleKey = self::getGoogleApiKey();
         foreach ($models as $model) {
             $attempts = 0;
             while ($attempts < 2) {
                 $attempts++;
-                $url = "https://generativelanguage.googleapis.com/v1beta/models/" . $model . ":generateContent?key=" . self::$googleApiKey;
+                $url = "https://generativelanguage.googleapis.com/v1beta/models/" . $model . ":generateContent?key=" . $googleKey;
                 $payload = [
                     'contents' => [
                         ['parts' => [['text' => $prompt]]]
@@ -437,12 +475,15 @@ class KeystoneGrowthService {
                   "Palette: corporate deep navy blue #003366, elegant charcoal and glowing cyan neon #00b4d8 accents. " .
                   "Photorealistic, 8k resolution, minimalist sleek tech aesthetic, professional B2B marketing visual. " . $styleModifier;
 
-        $url = "https://api.cloudflare.com/client/v4/accounts/" . self::$cfAccountId . "/ai/run/@cf/black-forest-labs/flux-1-schnell";
+        $cfAcc = self::getCfAccountId();
+        $cfTok = self::getCfAiToken();
+        $url = "https://api.cloudflare.com/client/v4/accounts/" . $cfAcc . "/ai/run/@cf/black-forest-labs/flux-1-schnell";
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Authorization: Bearer ' . self::$cfAiToken,
-            'Content-Type: application/json'
+            'Authorization: Bearer ' . $cfTok,
+            'Content-Type: application/json',
+            'User-Agent: KeystoneGrowthEngine/1.0'
         ]);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['prompt' => $prompt]));
@@ -492,8 +533,125 @@ class KeystoneGrowthService {
             'success' => true,
             'image_url' => $publicUrl,
             'file_name' => $filename,
-            'prompt' => $prompt
+            'prompt' => $prompt,
+            'model_used' => 'Cloudflare FLUX.1 Schnell'
         ];
+    }
+
+    /**
+     * Generación de Banner con Google AI Studio (Gemini 2.5 Flash Image / Nano Banana)
+     */
+    public static function generateBannerGemini(string $tenantSlug, string $topic, string $styleModifier = ''): array {
+        $prompt = "A high-end corporate advertisement banner for {$tenantSlug}. Theme: {$topic}. " .
+                  "Palette: corporate deep navy blue #003366, elegant charcoal and glowing cyan neon #00b4d8 accents. " .
+                  "Photorealistic, 8k resolution, minimalist sleek tech aesthetic, professional B2B marketing visual. " . $styleModifier;
+
+        $googleKey = self::getGoogleApiKey();
+        $models = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image', 'gemini-3.1-flash-image-preview', 'gemini-3-pro-image'];
+        $response = null;
+        $httpCode = 0;
+        $successModel = '';
+
+        foreach ($models as $m) {
+            $url = "https://generativelanguage.googleapis.com/v1beta/models/" . $m . ":generateContent?key=" . $googleKey;
+            $payload = [
+                'contents' => [
+                    ['parts' => [['text' => $prompt]]]
+                ]
+            ];
+
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'User-Agent: KeystoneGrowthEngine/1.0']);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 40);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode === 200 && !empty($response)) {
+                $successModel = $m;
+                break;
+            }
+        }
+
+        if ($httpCode !== 200 || !$response) {
+            $errMsg = substr($response ?? '', 0, 300);
+            return [
+                'success' => false,
+                'error' => 'Error al generar imagen con Google AI Studio (HTTP ' . $httpCode . '): ' . $errMsg
+            ];
+        }
+
+        $resJson = json_decode($response, true);
+        // Extraer base64 de la respuesta Gemini image
+        $imgB64 = null;
+        $parts = $resJson['candidates'][0]['content']['parts'] ?? [];
+        foreach ($parts as $p) {
+            if (isset($p['inlineData']['data'])) {
+                $imgB64 = $p['inlineData']['data'];
+                break;
+            } elseif (isset($p['inline_data']['data'])) {
+                $imgB64 = $p['inline_data']['data'];
+                break;
+            }
+        }
+
+        if (!$imgB64) {
+            return [
+                'success' => false,
+                'error' => 'No se encontró contenido binario de imagen en la respuesta de Google Gemini'
+            ];
+        }
+
+        $creativesDir = __DIR__ . '/../assets/creatives';
+        if (!is_dir($creativesDir)) {
+            @mkdir($creativesDir, 0755, true);
+        }
+
+        $filename = 'banner_gemini_' . preg_replace('/[^a-zA-Z0-9_\-]/', '_', $tenantSlug) . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(3)) . '.png';
+        $fullPath = $creativesDir . '/' . $filename;
+        file_put_contents($fullPath, base64_decode($imgB64));
+
+        $publicUrl = '/assets/creatives/' . $filename;
+
+        $db = self::getDb();
+        $stmt = $db->prepare("INSERT INTO mkt_ai_creatives (tenant_slug, platform, topic, banner_image_path, banner_prompt, model_used)
+                              VALUES (?, 'MULTI_PLATFORM', ?, ?, ?, ?)");
+        $stmt->execute([$tenantSlug, $topic, $publicUrl, $prompt, 'Google AI Studio (' . $successModel . ')']);
+
+        return [
+            'success' => true,
+            'image_url' => $publicUrl,
+            'file_name' => $filename,
+            'prompt' => $prompt,
+            'model_used' => 'Google AI Studio (' . $successModel . ')'
+        ];
+    }
+
+    /**
+     * Dispatcher Universal de Generación de Banners según Motor Elegido
+     * @param string $engine 'flux' o 'gemini' (o 'auto')
+     */
+    public static function generateBanner(string $tenantSlug, string $topic, string $styleModifier = '', string $engine = 'flux'): array {
+        $engine = strtolower(trim($engine));
+        if ($engine === 'gemini' || $engine === 'google') {
+            $res = self::generateBannerGemini($tenantSlug, $topic, $styleModifier);
+            if (!empty($res['success'])) {
+                return $res;
+            }
+            // Si Gemini falla por créditos o cuota, fallback transparente a FLUX.1
+            $fluxRes = self::generateBannerFlux($tenantSlug, $topic, $styleModifier);
+            if (!empty($fluxRes['success'])) {
+                $fluxRes['notice'] = 'Google AI Studio no disponible (' . ($res['error'] ?? 'créditos agotados') . '). Generado con respaldo Cloudflare FLUX.1.';
+                return $fluxRes;
+            }
+            return $res;
+        }
+
+        return self::generateBannerFlux($tenantSlug, $topic, $styleModifier);
     }
 
     // =========================================================================
@@ -567,5 +725,118 @@ class KeystoneGrowthService {
             return 'TABLET';
         }
         return 'DESKTOP';
+    }
+
+    /**
+     * Comprobación en Vivo del Estado de los Servicios de Marketing & IA
+     */
+    public static function checkIntegrationsHealth(): array {
+        $results = [];
+
+        // 1. Groq Cloud LPU
+        $groqKey = self::getGroqApiKey();
+        if (empty($groqKey)) {
+            $results['groq'] = ['status' => 'error', 'message' => 'API Key no configurada'];
+        } else {
+            $ch = curl_init('https://api.groq.com/openai/v1/models');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $groqKey, 'User-Agent: KeystoneGrowthEngine/1.0']);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            $res = curl_exec($ch);
+            $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($http === 200) {
+                $results['groq'] = ['status' => 'ok', 'message' => 'Conectado y operativo (< 800ms latencia)'];
+            } else {
+                $results['groq'] = ['status' => 'error', 'message' => 'HTTP ' . $http . ': ' . substr($res, 0, 120)];
+            }
+        }
+
+        // 2. Cloudflare Workers AI (FLUX.1 Schnell)
+        $cfToken = self::getCfAiToken();
+        $cfAcc = self::getCfAccountId();
+        if (empty($cfToken) || empty($cfAcc)) {
+            $results['cloudflare'] = ['status' => 'error', 'message' => 'Credenciales Cloudflare incompletas'];
+        } else {
+            $ch = curl_init('https://api.cloudflare.com/client/v4/user/tokens/verify');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $cfToken, 'User-Agent: KeystoneGrowthEngine/1.0']);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            $res = curl_exec($ch);
+            $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            $j = json_decode($res, true);
+            if ($http === 200 && !empty($j['success'])) {
+                $results['cloudflare'] = ['status' => 'ok', 'message' => 'Token activo en cuenta ' . substr($cfAcc, 0, 8) . '... (FLUX.1 1024px listo)'];
+            } else {
+                $results['cloudflare'] = ['status' => 'error', 'message' => 'HTTP ' . $http . ': ' . ($j['errors'][0]['message'] ?? 'Error de autenticación')];
+            }
+        }
+
+        // 3. Google AI Studio (Gemini Flash & Image)
+        $gKey = self::getGoogleApiKey();
+        if (empty($gKey)) {
+            $results['google_ai'] = ['status' => 'error', 'message' => 'API Key no configurada'];
+        } else {
+            $ch = curl_init('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . $gKey);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'User-Agent: KeystoneGrowthEngine/1.0']);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['contents' => [['parts' => [['text' => 'ping']]]]]));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            $res = curl_exec($ch);
+            $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($http === 200) {
+                $results['google_ai'] = ['status' => 'ok', 'message' => 'Conectado exitosamente a Gemini 2.5 Flash / Flash Image'];
+            } else {
+                $j = json_decode($res, true);
+                $msg = $j['error']['message'] ?? ('HTTP ' . $http);
+                $results['google_ai'] = ['status' => 'warning', 'message' => $msg];
+            }
+        }
+
+        // 4. LinkedIn Empresa & Publicador
+        $db = self::getDb();
+        $liToken = (string)$db->query("SELECT setting_value FROM mkt_settings WHERE setting_key = 'linkedin_access_token'")->fetchColumn();
+        $liOrgId = (string)$db->query("SELECT setting_value FROM mkt_settings WHERE setting_key = 'linkedin_org_id'")->fetchColumn();
+        $liExpires = (int)$db->query("SELECT setting_value FROM mkt_settings WHERE setting_key = 'linkedin_token_expires_at'")->fetchColumn();
+        $liMemberUrn = (string)$db->query("SELECT setting_value FROM mkt_settings WHERE setting_key = 'linkedin_member_urn'")->fetchColumn();
+
+        if (empty($liToken)) {
+            $results['linkedin'] = ['status' => 'error', 'message' => 'Sin autorización OAuth activa'];
+        } else {
+            $ch = curl_init('https://api.linkedin.com/v2/userinfo');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $liToken, 'User-Agent: KeystoneGrowthEngine/1.0']);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            $res = curl_exec($ch);
+            $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($http === 200) {
+                $j = json_decode($res, true);
+                $expDays = $liExpires > 0 ? max(0, round(($liExpires - time()) / 86400)) : 0;
+                $results['linkedin'] = [
+                    'status' => 'ok',
+                    'message' => 'Sesión activa de ' . ($j['name'] ?? 'Usuario') . ' (' . ($liMemberUrn ?: 'Miembro') . '). Válida por ' . $expDays . ' días.',
+                    'org_id' => $liOrgId
+                ];
+            } else {
+                $results['linkedin'] = ['status' => 'error', 'message' => 'Token expirado o revocado (HTTP ' . $http . ')'];
+            }
+        }
+
+        // 5. Google Ads
+        $gCustId = (string)$db->query("SELECT setting_value FROM mkt_settings WHERE setting_key = 'google_ads_customer_id'")->fetchColumn();
+        $gHasRefresh = (bool)$db->query("SELECT COUNT(*) FROM mkt_settings WHERE setting_key = 'google_ads_refresh_token'")->fetchColumn();
+        if (!empty($gCustId) && $gHasRefresh) {
+            $results['google_ads'] = ['status' => 'ok', 'message' => 'Cuenta ' . $gCustId . ' vinculada con Refresh Token permanente'];
+        } elseif (!empty($gCustId)) {
+            $results['google_ads'] = ['status' => 'warning', 'message' => 'ID configurado (' . $gCustId . '), pendiente autorización OAuth'];
+        } else {
+            $results['google_ads'] = ['status' => 'info', 'message' => 'No configurado aún'];
+        }
+
+        return $results;
     }
 }
