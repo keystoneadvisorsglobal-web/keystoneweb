@@ -5743,15 +5743,15 @@ $scans_list = $db->query("
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
               <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">⚡ Groq Cloud LPU</span>
-              <span id="badge_groq" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['groq']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
-                <?php echo strtoupper($health['groq']['status']); ?>
+              <span id="badge_groq" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.55rem; border-radius:99px; background:<?php echo $health['groq']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
+                <?php echo htmlspecialchars($health['groq']['status_es'] ?? ($health['groq']['status'] === 'ok' ? 'ACTIVO' : 'ERROR')); ?>
               </span>
             </div>
             <div id="msg_groq" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
               <?php echo htmlspecialchars($health['groq']['message']); ?>
             </div>
             <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
-              Modelo: <code>qwen/qwen3.8-27b</code> (Tier 1 Copywriter)
+              Modelo: <code>qwen/qwen3.8-27b</code> (Redactor Principal)
             </div>
           </div>
 
@@ -5759,15 +5759,15 @@ $scans_list = $db->query("
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
               <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">🖼️ Cloudflare FLUX.1</span>
-              <span id="badge_cloudflare" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['cloudflare']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
-                <?php echo strtoupper($health['cloudflare']['status']); ?>
+              <span id="badge_cloudflare" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.55rem; border-radius:99px; background:<?php echo $health['cloudflare']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
+                <?php echo htmlspecialchars($health['cloudflare']['status_es'] ?? ($health['cloudflare']['status'] === 'ok' ? 'ACTIVO' : 'ERROR')); ?>
               </span>
             </div>
             <div id="msg_cloudflare" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
               <?php echo htmlspecialchars($health['cloudflare']['message']); ?>
             </div>
             <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
-              Motor: Workers AI Schnell (1024x1024 px)
+              Motor: Workers AI Schnell (Banners 1024x1024 px)
             </div>
           </div>
 
@@ -5775,8 +5775,8 @@ $scans_list = $db->query("
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
               <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">🧠 Google AI Studio</span>
-              <span id="badge_google_ai" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['google_ai']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : ($health['google_ai']['status'] === 'warning' ? '#fef3c7; color:#92400e;' : '#fee2e2; color:#b91c1c;'); ?>">
-                <?php echo strtoupper($health['google_ai']['status']); ?>
+              <span id="badge_google_ai" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.55rem; border-radius:99px; background:<?php echo $health['google_ai']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : ($health['google_ai']['status'] === 'warning' ? '#fef3c7; color:#92400e;' : '#fee2e2; color:#b91c1c;'); ?>">
+                <?php echo htmlspecialchars($health['google_ai']['status_es'] ?? ($health['google_ai']['status'] === 'ok' ? 'ACTIVO' : ($health['google_ai']['status'] === 'warning' ? 'ATENCIÓN' : 'ERROR'))); ?>
               </span>
             </div>
             <div id="msg_google_ai" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
@@ -5791,15 +5791,15 @@ $scans_list = $db->query("
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
               <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">💼 LinkedIn Empresa</span>
-              <span id="badge_linkedin" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['linkedin']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
-                <?php echo strtoupper($health['linkedin']['status']); ?>
+              <span id="badge_linkedin" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.55rem; border-radius:99px; background:<?php echo $health['linkedin']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
+                <?php echo htmlspecialchars($health['linkedin']['status_es'] ?? ($health['linkedin']['status'] === 'ok' ? 'ACTIVO' : 'ERROR')); ?>
               </span>
             </div>
             <div id="msg_linkedin" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
               <?php echo htmlspecialchars($health['linkedin']['message']); ?>
             </div>
             <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
-              Org ID: <code><?php echo htmlspecialchars($liOrgId); ?></code> (REST v202610)
+              ID de Organización: <code><?php echo htmlspecialchars($liOrgId); ?></code> (REST v202610)
             </div>
           </div>
 
@@ -5807,15 +5807,15 @@ $scans_list = $db->query("
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
               <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">🔍 Google Ads</span>
-              <span id="badge_google_ads" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['google_ads']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : ($health['google_ads']['status'] === 'warning' ? '#fef3c7; color:#92400e;' : '#f1f5f9; color:#475569;'); ?>">
-                <?php echo strtoupper($health['google_ads']['status']); ?>
+              <span id="badge_google_ads" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.55rem; border-radius:99px; background:<?php echo $health['google_ads']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : ($health['google_ads']['status'] === 'warning' ? '#fef3c7; color:#92400e;' : '#f1f5f9; color:#475569;'); ?>">
+                <?php echo htmlspecialchars($health['google_ads']['status_es'] ?? ($health['google_ads']['status'] === 'ok' ? 'ACTIVO' : ($health['google_ads']['status'] === 'warning' ? 'PENDIENTE' : 'INACTIVO'))); ?>
               </span>
             </div>
             <div id="msg_google_ads" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
               <?php echo htmlspecialchars($health['google_ads']['message']); ?>
             </div>
             <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
-              Customer ID: <code><?php echo htmlspecialchars($gCustId); ?></code>
+              ID de Cliente: <code><?php echo htmlspecialchars($gCustId); ?></code>
             </div>
           </div>
 
@@ -5955,13 +5955,17 @@ $scans_list = $db->query("
           const badge = document.getElementById("badge_" + id);
           const msg = document.getElementById("msg_" + id);
           if (badge) {
-            badge.innerText = data.status.toUpperCase();
+            const labelEs = data.status_es || (data.status === "ok" ? "ACTIVO" : (data.status === "warning" ? "ATENCIÓN" : (data.status === "info" ? "INACTIVO" : "ERROR")));
+            badge.innerText = labelEs;
             if (data.status === "ok") {
               badge.style.background = "#dcfce7";
               badge.style.color = "#15803d";
             } else if (data.status === "warning") {
               badge.style.background = "#fef3c7";
               badge.style.color = "#92400e";
+            } else if (data.status === "info") {
+              badge.style.background = "#f1f5f9";
+              badge.style.color = "#475569";
             } else {
               badge.style.background = "#fee2e2";
               badge.style.color = "#b91c1c";

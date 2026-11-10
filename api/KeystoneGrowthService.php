@@ -736,7 +736,11 @@ class KeystoneGrowthService {
         // 1. Groq Cloud LPU
         $groqKey = self::getGroqApiKey();
         if (empty($groqKey)) {
-            $results['groq'] = ['status' => 'error', 'message' => 'API Key no configurada'];
+            $results['groq'] = [
+                'status' => 'error',
+                'status_es' => 'ERROR',
+                'message' => 'Clave API de Groq no configurada.'
+            ];
         } else {
             $ch = curl_init('https://api.groq.com/openai/v1/models');
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $groqKey, 'User-Agent: KeystoneGrowthEngine/1.0']);
@@ -746,9 +750,17 @@ class KeystoneGrowthService {
             $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             if ($http === 200) {
-                $results['groq'] = ['status' => 'ok', 'message' => 'Conectado y operativo (< 800ms latencia)'];
+                $results['groq'] = [
+                    'status' => 'ok',
+                    'status_es' => 'ACTIVO',
+                    'message' => 'Conectado y 100% operativo (latencia menor a 800ms).'
+                ];
             } else {
-                $results['groq'] = ['status' => 'error', 'message' => 'HTTP ' . $http . ': ' . substr($res, 0, 120)];
+                $results['groq'] = [
+                    'status' => 'error',
+                    'status_es' => 'ERROR',
+                    'message' => 'Error de autenticación o respuesta en Groq (HTTP ' . $http . ').'
+                ];
             }
         }
 
@@ -756,7 +768,11 @@ class KeystoneGrowthService {
         $cfToken = self::getCfAiToken();
         $cfAcc = self::getCfAccountId();
         if (empty($cfToken) || empty($cfAcc)) {
-            $results['cloudflare'] = ['status' => 'error', 'message' => 'Credenciales Cloudflare incompletas'];
+            $results['cloudflare'] = [
+                'status' => 'error',
+                'status_es' => 'ERROR',
+                'message' => 'Credenciales de Cloudflare incompletas en la configuración.'
+            ];
         } else {
             $ch = curl_init('https://api.cloudflare.com/client/v4/user/tokens/verify');
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $cfToken, 'User-Agent: KeystoneGrowthEngine/1.0']);
@@ -767,16 +783,28 @@ class KeystoneGrowthService {
             curl_close($ch);
             $j = json_decode($res, true);
             if ($http === 200 && !empty($j['success'])) {
-                $results['cloudflare'] = ['status' => 'ok', 'message' => 'Token activo en cuenta ' . substr($cfAcc, 0, 8) . '... (FLUX.1 1024px listo)'];
+                $results['cloudflare'] = [
+                    'status' => 'ok',
+                    'status_es' => 'ACTIVO',
+                    'message' => 'Token activo en cuenta ' . substr($cfAcc, 0, 8) . '... Motor FLUX.1 listo para generar banners 1024x1024 px.'
+                ];
             } else {
-                $results['cloudflare'] = ['status' => 'error', 'message' => 'HTTP ' . $http . ': ' . ($j['errors'][0]['message'] ?? 'Error de autenticación')];
+                $results['cloudflare'] = [
+                    'status' => 'error',
+                    'status_es' => 'ERROR',
+                    'message' => 'Error de autenticación en Cloudflare (HTTP ' . $http . '). Revise el API Token.'
+                ];
             }
         }
 
         // 3. Google AI Studio (Gemini Flash & Image)
         $gKey = self::getGoogleApiKey();
         if (empty($gKey)) {
-            $results['google_ai'] = ['status' => 'error', 'message' => 'API Key no configurada'];
+            $results['google_ai'] = [
+                'status' => 'error',
+                'status_es' => 'ERROR',
+                'message' => 'API Key de Google AI Studio no configurada.'
+            ];
         } else {
             $ch = curl_init('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . $gKey);
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'User-Agent: KeystoneGrowthEngine/1.0']);
@@ -788,11 +816,35 @@ class KeystoneGrowthService {
             $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             if ($http === 200) {
-                $results['google_ai'] = ['status' => 'ok', 'message' => 'Conectado exitosamente a Gemini 2.5 Flash / Flash Image'];
+                $results['google_ai'] = [
+                    'status' => 'ok',
+                    'status_es' => 'ACTIVO',
+                    'message' => 'Conectado exitosamente a Gemini 2.5 Flash / Flash Image.'
+                ];
             } else {
                 $j = json_decode($res, true);
-                $msg = $j['error']['message'] ?? ('HTTP ' . $http);
-                $results['google_ai'] = ['status' => 'warning', 'message' => $msg];
+                $rawMsg = $j['error']['message'] ?? ('HTTP ' . $http);
+                $statusType = 'warning';
+                $statusEs = 'ATENCIÓN';
+                
+                // Traducción y humanización clara al español
+                if (strpos($rawMsg, 'prepayment credits are depleted') !== false || strpos($rawMsg, 'RESOURCE_EXHAUSTED') !== false || $http === 402) {
+                    $msgEs = 'Los créditos de prepago en su cuenta de Google AI Studio están agotados. Ingrese a ai.studio/projects para activar la facturación o recargar saldo.';
+                } elseif (strpos($rawMsg, 'API key not valid') !== false || $http === 400 || $http === 403) {
+                    $msgEs = 'La clave API de Google ingresada no es válida o ha sido revocada. Verifíquela en su panel de Google AI Studio.';
+                    $statusType = 'error';
+                    $statusEs = 'ERROR';
+                } elseif ($http === 429) {
+                    $msgEs = 'Límite de solicitudes por minuto alcanzado temporalmente. El servicio conmutará a Groq / Cloudflare.';
+                } else {
+                    $msgEs = 'Error de conexión con Google (HTTP ' . $http . '): ' . $rawMsg;
+                }
+
+                $results['google_ai'] = [
+                    'status' => $statusType,
+                    'status_es' => $statusEs,
+                    'message' => $msgEs
+                ];
             }
         }
 
@@ -804,7 +856,11 @@ class KeystoneGrowthService {
         $liMemberUrn = (string)$db->query("SELECT setting_value FROM mkt_settings WHERE setting_key = 'linkedin_member_urn'")->fetchColumn();
 
         if (empty($liToken)) {
-            $results['linkedin'] = ['status' => 'error', 'message' => 'Sin autorización OAuth activa'];
+            $results['linkedin'] = [
+                'status' => 'error',
+                'status_es' => 'ERROR',
+                'message' => 'Sin autorización OAuth activa. Conecte su cuenta de LinkedIn.'
+            ];
         } else {
             $ch = curl_init('https://api.linkedin.com/v2/userinfo');
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $liToken, 'User-Agent: KeystoneGrowthEngine/1.0']);
@@ -818,11 +874,16 @@ class KeystoneGrowthService {
                 $expDays = $liExpires > 0 ? max(0, round(($liExpires - time()) / 86400)) : 0;
                 $results['linkedin'] = [
                     'status' => 'ok',
-                    'message' => 'Sesión activa de ' . ($j['name'] ?? 'Usuario') . ' (' . ($liMemberUrn ?: 'Miembro') . '). Válida por ' . $expDays . ' días.',
+                    'status_es' => 'ACTIVO',
+                    'message' => 'Sesión autorizada de ' . ($j['name'] ?? 'Usuario') . ' (' . ($liMemberUrn ?: 'Miembro') . '). Válida por ' . $expDays . ' días adicionales.',
                     'org_id' => $liOrgId
                 ];
             } else {
-                $results['linkedin'] = ['status' => 'error', 'message' => 'Token expirado o revocado (HTTP ' . $http . ')'];
+                $results['linkedin'] = [
+                    'status' => 'error',
+                    'status_es' => 'ERROR',
+                    'message' => 'Token expirado o revocado (HTTP ' . $http . '). Reautorice la conexión.'
+                ];
             }
         }
 
@@ -830,11 +891,23 @@ class KeystoneGrowthService {
         $gCustId = (string)$db->query("SELECT setting_value FROM mkt_settings WHERE setting_key = 'google_ads_customer_id'")->fetchColumn();
         $gHasRefresh = (bool)$db->query("SELECT COUNT(*) FROM mkt_settings WHERE setting_key = 'google_ads_refresh_token'")->fetchColumn();
         if (!empty($gCustId) && $gHasRefresh) {
-            $results['google_ads'] = ['status' => 'ok', 'message' => 'Cuenta ' . $gCustId . ' vinculada con Refresh Token permanente'];
+            $results['google_ads'] = [
+                'status' => 'ok',
+                'status_es' => 'ACTIVO',
+                'message' => 'Cuenta ' . $gCustId . ' vinculada con Refresh Token permanente.'
+            ];
         } elseif (!empty($gCustId)) {
-            $results['google_ads'] = ['status' => 'warning', 'message' => 'ID configurado (' . $gCustId . '), pendiente autorización OAuth'];
+            $results['google_ads'] = [
+                'status' => 'warning',
+                'status_es' => 'PENDIENTE',
+                'message' => 'ID configurado (' . $gCustId . '), pendiente completar autorización OAuth.'
+            ];
         } else {
-            $results['google_ads'] = ['status' => 'info', 'message' => 'No configurado aún'];
+            $results['google_ads'] = [
+                'status' => 'info',
+                'status_es' => 'INACTIVO',
+                'message' => 'Servicio aún no configurado.'
+            ];
         }
 
         return $results;
