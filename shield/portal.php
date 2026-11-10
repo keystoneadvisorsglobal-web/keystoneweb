@@ -32,7 +32,14 @@ $waService = new DeepShieldWhatsAppService();
 
 // Manejo de Logout
 if (isset($_GET['action']) && $_GET['action'] === 'logout') {
-    unset($_SESSION['treasury_tenant']);
+    unset($_SESSION['treasury_tenant'], $_SESSION['ds_2fa_pending']);
+    header("Location: portal.php");
+    exit;
+}
+
+// Cancelar 2FA y regresar al login de credenciales
+if (isset($_GET['cancel_2fa'])) {
+    unset($_SESSION['ds_2fa_pending']);
     header("Location: portal.php");
     exit;
 }
@@ -40,11 +47,67 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
 $tenant = $_SESSION['treasury_tenant'] ?? null;
 $activeTab = $_GET['tab'] ?? 'single'; // single, batch, whitelist
 $loginError = null;
+$loginInfo = null;
 $orderCreated = null;
 $batchResult = null;
 $feedbackMsg = null;
+$is2faStep = !empty($_SESSION['ds_2fa_pending']);
 
-// Proceso de Login de Tesorería
+// Reenviar OTP de DeepShield
+if (isset($_GET['resend_2fa']) && !empty($_SESSION['ds_2fa_pending'])) {
+    $pData = $_SESSION['ds_2fa_pending'];
+    $forceCh = $_GET['channel'] ?? null;
+    $otp = str_pad((string)random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+    $otpHash = password_hash($otp, PASSWORD_BCRYPT);
+
+    // Guardar OTP en la tabla correspondiente
+    if ($pData['type'] === 'OPERATOR') {
+        $st = $db->prepare("UPDATE deepshield_operators SET otp_code = ?, otp_expires_at = datetime('now', '+5 minutes') WHERE id = ?");
+        $st->execute([$otpHash, $pData['operator_id']]);
+    } else {
+        $st = $db->prepare("UPDATE deepshield_tenants SET otp_code = ?, otp_expires_at = datetime('now', '+5 minutes') WHERE tenant_slug = ?");
+        $st->execute([$otpHash, $pData['slug']]);
+    }
+
+    $destPhone = $pData['phone'];
+    $destEmail = $pData['email'];
+    $opName = $pData['name'];
+
+    if ($forceCh === 'email' || empty($destPhone)) {
+        $smtp = new KeystoneSmtpClient();
+        $sub = "🛡️ Código de Verificación 2FA: {$otp} - Keystone DeepShield";
+        $html = "<div style='background:#0B0F19; color:#fff; padding:20px; font-family:Arial;'>
+                    <h2 style='color:#38BDF8;'>Keystone DeepShield</h2>
+                    <p>Hola <strong>{$opName}</strong>,</p>
+                    <p>Tu nuevo código de verificación para ingresar al Portal de Tesorería es:</p>
+                    <h1 style='color:#10B981; letter-spacing:6px; font-family:monospace;'>{$otp}</h1>
+                    <p style='color:#94A3B8; font-size:12px;'>Expira en 5 minutos.</p>
+                 </div>";
+        $smtp->send($destEmail, $sub, $html);
+        $loginInfo = "Nuevo código enviado a tu correo ({$destEmail})";
+    } else {
+        try {
+            $msg = "🛡️ *Keystone DeepShield (2FA)*\n\nHola {$opName},\nTu nuevo código de verificación es: *{$otp}*\n\nExpira en 5 minutos.";
+            $waService->sendRawMessage('keystone-general', $destPhone, $msg);
+            $cleanPh = substr($destPhone, 0, 4) . '***' . substr($destPhone, -4);
+            $loginInfo = "Nuevo código enviado a tu WhatsApp ({$cleanPh})";
+        } catch (\Throwable $e) {
+            $smtp = new KeystoneSmtpClient();
+            $sub = "🛡️ Código de Verificación 2FA: {$otp} - Keystone DeepShield";
+            $html = "<div style='background:#0B0F19; color:#fff; padding:20px; font-family:Arial;'>
+                        <h2 style='color:#38BDF8;'>Keystone DeepShield</h2>
+                        <p>Hola <strong>{$opName}</strong>,</p>
+                        <p>Tu nuevo código de verificación para ingresar al Portal de Tesorería es:</p>
+                        <h1 style='color:#10B981; letter-spacing:6px; font-family:monospace;'>{$otp}</h1>
+                        <p style='color:#94A3B8; font-size:12px;'>Expira en 5 minutos.</p>
+                     </div>";
+            $smtp->send($destEmail, $sub, $html);
+            $loginInfo = "Nuevo código enviado a tu correo ({$destEmail})";
+        }
+    }
+}
+
+// Paso 1: Verificación de Credenciales
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'login') {
     $slug = trim($_POST['tenant_slug'] ?? '');
     $email = trim($_POST['email'] ?? '');
@@ -52,11 +115,130 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     $authedTenant = $tenantService->authenticateOperator($slug, $email, $password);
     if ($authedTenant) {
-        $_SESSION['treasury_tenant'] = $authedTenant;
-        header("Location: portal.php");
-        exit;
+        $realSlug = $authedTenant['tenant_slug'];
+        $operatorPhone = $authedTenant['treasury_operator_phone'] ?? '';
+        $operatorEmail = $authedTenant['treasury_operator_email'] ?? $email;
+        $operatorName = $authedTenant['treasury_operator_name'] ?? 'Operador';
+        $operatorId = $authedTenant['current_operator_id'] ?? 0;
+
+        $otp = str_pad((string)random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+        $otpHash = password_hash($otp, PASSWORD_BCRYPT);
+
+        if ($operatorId > 0) {
+            $st = $db->prepare("UPDATE deepshield_operators SET otp_code = ?, otp_expires_at = datetime('now', '+5 minutes') WHERE id = ?");
+            $st->execute([$otpHash, $operatorId]);
+            $pendingType = 'OPERATOR';
+        } else {
+            $st = $db->prepare("UPDATE deepshield_tenants SET otp_code = ?, otp_expires_at = datetime('now', '+5 minutes') WHERE tenant_slug = ?");
+            $st->execute([$otpHash, $realSlug]);
+            $pendingType = 'TENANT';
+        }
+
+        // Cascada: WhatsApp prioritario con fallback a Email
+        $channel = 'whatsapp';
+        $maskedDest = '';
+
+        if (!empty($operatorPhone)) {
+            try {
+                $msg = "🛡️ *Keystone DeepShield (2FA)*\n\nHola {$operatorName},\nTu código de verificación para ingresar al Portal de Tesorería es:\n\n👉 *{$otp}*\n\nExpira en 5 minutos. No lo compartas.";
+                $waService->sendRawMessage('keystone-general', $operatorPhone, $msg);
+                $maskedDest = substr($operatorPhone, 0, 4) . '***' . substr($operatorPhone, -4);
+                $channel = 'whatsapp';
+            } catch (\Throwable $eWa) {
+                $smtp = new KeystoneSmtpClient();
+                $sub = "🛡️ Código de Verificación 2FA: {$otp} - Keystone DeepShield";
+                $html = "<div style='background:#0B0F19; color:#fff; padding:20px; font-family:Arial;'>
+                            <h2 style='color:#38BDF8;'>Keystone DeepShield</h2>
+                            <p>Hola <strong>{$operatorName}</strong>,</p>
+                            <p>Tu código de verificación para ingresar al Portal de Tesorería es:</p>
+                            <h1 style='color:#10B981; letter-spacing:6px; font-family:monospace;'>{$otp}</h1>
+                            <p style='color:#94A3B8; font-size:12px;'>Expira en 5 minutos.</p>
+                         </div>";
+                $smtp->send($operatorEmail, $sub, $html);
+                $parts = explode('@', $operatorEmail);
+                $maskedDest = substr($parts[0], 0, 3) . '***@' . ($parts[1] ?? '');
+                $channel = 'email';
+            }
+        } else {
+            $smtp = new KeystoneSmtpClient();
+            $sub = "🛡️ Código de Verificación 2FA: {$otp} - Keystone DeepShield";
+            $html = "<div style='background:#0B0F19; color:#fff; padding:20px; font-family:Arial;'>
+                        <h2 style='color:#38BDF8;'>Keystone DeepShield</h2>
+                        <p>Hola <strong>{$operatorName}</strong>,</p>
+                        <p>Tu código de verificación para ingresar al Portal de Tesorería es:</p>
+                        <h1 style='color:#10B981; letter-spacing:6px; font-family:monospace;'>{$otp}</h1>
+                        <p style='color:#94A3B8; font-size:12px;'>Expira en 5 minutos.</p>
+                     </div>";
+            $smtp->send($operatorEmail, $sub, $html);
+            $parts = explode('@', $operatorEmail);
+            $maskedDest = substr($parts[0], 0, 3) . '***@' . ($parts[1] ?? '');
+            $channel = 'email';
+        }
+
+        $_SESSION['ds_2fa_pending'] = [
+            'authed_tenant' => $authedTenant,
+            'slug' => $slug,
+            'email' => $operatorEmail,
+            'phone' => $operatorPhone,
+            'name' => $operatorName,
+            'operator_id' => $operatorId,
+            'type' => $pendingType,
+            'channel' => $channel,
+            'masked_destination' => $maskedDest
+        ];
+        $is2faStep = true;
     } else {
         $loginError = "Credenciales incorrectas o la empresa se encuentra suspendida.";
+    }
+}
+
+// Paso 2: Verificación de Código 2FA OTP
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_2fa') {
+    $enteredOtp = trim($_POST['otp_code'] ?? '');
+    $pData = $_SESSION['ds_2fa_pending'] ?? null;
+
+    if (!$pData || empty($enteredOtp)) {
+        $loginError = "Sesión de verificación expirada. Por favor inicie sesión nuevamente.";
+        unset($_SESSION['ds_2fa_pending']);
+        $is2faStep = false;
+    } else {
+        // Consultar hash y expiración
+        if ($pData['type'] === 'OPERATOR') {
+            $st = $db->prepare("SELECT otp_code, otp_expires_at FROM deepshield_operators WHERE id = ?");
+            $st->execute([$pData['operator_id']]);
+        } else {
+            $st = $db->prepare("SELECT otp_code, otp_expires_at FROM deepshield_tenants WHERE tenant_slug = ?");
+            $st->execute([$pData['slug']]);
+        }
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row || empty($row['otp_code'])) {
+            $loginError = "Código no encontrado o expirado. Solicite un nuevo reenvío.";
+        } else {
+            $stmtExp = $db->prepare("SELECT datetime('now') > ?");
+            $stmtExp->execute([$row['otp_expires_at']]);
+            $isExp = (int)$stmtExp->fetchColumn();
+
+            if ($isExp === 1) {
+                $loginError = "El código ha expirado (validez de 5 minutos). Solicite uno nuevo.";
+            } elseif (!password_verify($enteredOtp, $row['otp_code'])) {
+                $loginError = "Código de verificación incorrecto. Revise el mensaje recibido.";
+            } else {
+                // Éxito: limpiar OTP y conceder sesión
+                if ($pData['type'] === 'OPERATOR') {
+                    $cl = $db->prepare("UPDATE deepshield_operators SET otp_code = NULL, otp_expires_at = NULL WHERE id = ?");
+                    $cl->execute([$pData['operator_id']]);
+                } else {
+                    $cl = $db->prepare("UPDATE deepshield_tenants SET otp_code = NULL, otp_expires_at = NULL WHERE tenant_slug = ?");
+                    $cl->execute([$pData['slug']]);
+                }
+
+                $_SESSION['treasury_tenant'] = $pData['authed_tenant'];
+                unset($_SESSION['ds_2fa_pending']);
+                header("Location: portal.php");
+                exit;
+            }
+        }
     }
 }
 
@@ -622,7 +804,7 @@ if ($tenant) {
     </header>
 
     <?php if (!$tenant): ?>
-      <!-- Formulario de Login para Operador de Tesorería -->
+      <!-- Formulario de Login para Operador de Tesorería con 2FA Dual -->
       <div style="max-width: 480px; margin: 3rem auto;">
         <div class="card">
           <h2 style="font-size:1.4rem; color:var(--text-main); margin-bottom:0.5rem; text-align:center;">Portal de Ciberseguridad & Gobierno Financiero</h2>
@@ -634,24 +816,84 @@ if ($tenant) {
             <div class="alert-error"><?php echo htmlspecialchars($loginError); ?></div>
           <?php endif; ?>
 
-          <form method="POST">
-            <input type="hidden" name="action" value="login">
-            <div class="form-group">
-              <label class="form-label">Identificador de la Empresa (Slug)</label>
-              <input type="text" name="tenant_slug" required placeholder="ej: keystone" class="form-input">
+          <?php if (!empty($loginInfo)): ?>
+            <div class="alert-success"><?php echo htmlspecialchars($loginInfo); ?></div>
+          <?php endif; ?>
+
+          <?php if ($is2faStep && !empty($_SESSION['ds_2fa_pending'])): ?>
+            <?php 
+              $pInfo = $_SESSION['ds_2fa_pending'];
+              $isEmail = $pInfo['channel'] === 'email';
+            ?>
+            <!-- PASO 2: DESAFÍO 2FA DUAL WHATSAPP / EMAIL -->
+            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; text-align: center;">
+              <span style="display: inline-block; background: #059669; color: white; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; margin-bottom: 6px;">
+                🛡️ Verificación en Dos Pasos (2FA)
+              </span>
+              <div style="font-size: 0.88rem; color: var(--text-main); font-weight: 600;">
+                <?php echo $isEmail ? 'Código enviado a tu correo corporativo' : 'Código enviado a tu WhatsApp'; ?>
+              </div>
+              <div style="font-size: 0.82rem; color: #38bdf8; margin-top: 3px; font-family: monospace;">
+                (<?php echo htmlspecialchars($pInfo['masked_destination']); ?>)
+              </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Correo Corporativo Autorizado</label>
-              <input type="email" name="email" required placeholder="tesoreria@suempresa.cl" class="form-input">
+
+            <form method="POST">
+              <input type="hidden" name="action" value="verify_2fa">
+              <div class="form-group" style="text-align: center;">
+                <label class="form-label" style="text-align: center;">Ingrese el Código de 6 Dígitos</label>
+                <input type="text" name="otp_code" maxlength="6" pattern="[0-9]{6}" required autofocus autocomplete="one-time-code" placeholder="••••••" class="form-input" style="font-size: 1.8rem; letter-spacing: 0.5rem; text-align: center; font-weight: 800; font-family: monospace; color: var(--brand-accent);">
+              </div>
+              <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
+                Verificar & Acceder al Portal ➜
+              </button>
+            </form>
+
+            <!-- Acciones Alternativas -->
+            <div style="margin-top: 1.25rem; text-align: center; padding: 0.6rem; background: var(--bg-subtle); border-radius: 8px; font-size: 0.82rem;">
+              <?php if ($isEmail): ?>
+                <?php if (!empty($pInfo['phone'])): ?>
+                  <a href="portal.php?resend_2fa=1&channel=whatsapp" style="color: #10b981; text-decoration: none; font-weight: 600;">
+                    📲 ¿Prefieres recibirlo en WhatsApp? Enviar al celular
+                  </a>
+                <?php endif; ?>
+              <?php else: ?>
+                <a href="portal.php?resend_2fa=1&channel=email" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
+                  ✉️ ¿No tienes acceso a tu WhatsApp? Recibir por correo
+                </a>
+              <?php endif; ?>
             </div>
-            <div class="form-group">
-              <label class="form-label">Contraseña</label>
-              <input type="password" name="password" required placeholder="••••••••••••" class="form-input">
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem; font-size: 0.82rem;">
+              <a href="portal.php?resend_2fa=1" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
+                🔄 Reenviar Código
+              </a>
+              <a href="portal.php?cancel_2fa=1" style="color: #ef4444; text-decoration: none; font-weight: 600;">
+                ✕ Cancelar
+              </a>
             </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:1rem;">
-              Ingresar al Portal Seguro ➜
-            </button>
-          </form>
+
+          <?php else: ?>
+            <!-- PASO 1: CREDENCIALES DE TESORERÍA -->
+            <form method="POST">
+              <input type="hidden" name="action" value="login">
+              <div class="form-group">
+                <label class="form-label">Identificador de la Empresa (Slug)</label>
+                <input type="text" name="tenant_slug" required placeholder="ej: keystone" value="keystone" class="form-input">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Correo Corporativo o Usuario Autorizado</label>
+                <input type="text" name="email" required placeholder="contacto@keystoneadvisors.cl o keystone_admin" class="form-input">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Contraseña</label>
+                <input type="password" name="password" required placeholder="••••••••••••" class="form-input">
+              </div>
+              <button type="submit" class="btn btn-primary" style="margin-top:1rem;">
+                Ingresar al Portal Seguro ➜
+              </button>
+            </form>
+          <?php endif; ?>
         </div>
       </div>
 
