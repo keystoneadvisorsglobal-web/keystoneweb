@@ -3614,10 +3614,10 @@ $scans_list = $db->query("
               <thead>
                 <tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0; text-align:left; color:#64748b; font-size:0.75rem; text-transform:uppercase;">
                   <th style="padding:0.75rem;">Fecha & IP</th>
-                  <th style="padding:0.75rem;">Empresa Simulada</th>
-                  <th style="padding:0.75rem;">Industria</th>
-                  <th style="padding:0.75rem;">Vector de Ataque</th>
-                  <th style="padding:0.75rem;">Contacto de Lead</th>
+                  <th style="padding:0.75rem;">Empresa & Industria</th>
+                  <th style="padding:0.75rem;">Contacto / Solicitante</th>
+                  <th style="padding:0.75rem;">Teléfono & WhatsApp</th>
+                  <th style="padding:0.75rem;">Vector Evaluado</th>
                   <th style="padding:0.75rem; text-align:center;">Estado</th>
                 </tr>
               </thead>
@@ -3629,20 +3629,33 @@ $scans_list = $db->query("
                       <code><?php echo htmlspecialchars($ps['ip_address'] ?? ''); ?></code>
                     </td>
                     <td style="padding:0.75rem;">
-                      <strong style="color:#0f172a;"><?php echo htmlspecialchars($ps['company_name']); ?></strong>
+                      <strong style="color:#0f172a; font-size:0.92rem;"><?php echo htmlspecialchars($ps['company_name']); ?></strong><br>
+                      <span style="color:#64748b; font-size:0.75rem;">🏭 <?php echo htmlspecialchars($ps['industry']); ?></span>
                     </td>
-                    <td style="padding:0.75rem; color:#475569;">
-                      <?php echo htmlspecialchars($ps['industry']); ?>
+                    <td style="padding:0.75rem;">
+                      <?php if (!empty($ps['contact_name'])): ?>
+                        <strong style="color:#0f172a; font-size:0.88rem;"><?php echo htmlspecialchars($ps['contact_name']); ?></strong><br>
+                      <?php endif; ?>
+                      <?php if (!empty($ps['lead_email'])): ?>
+                        <a href="mailto:<?php echo htmlspecialchars($ps['lead_email']); ?>" style="color:#0284c7; text-decoration:none; font-weight:bold; font-size:0.8rem;">
+                          ✉️ <?php echo htmlspecialchars($ps['lead_email']); ?>
+                        </a>
+                      <?php else: ?>
+                        <span style="color:#94a3b8; font-size:0.75rem;">No proporcionado</span>
+                      <?php endif; ?>
+                    </td>
+                    <td style="padding:0.75rem;">
+                      <?php if (!empty($ps['lead_phone'])): ?>
+                        <?php $cleanPhone = preg_replace('/[^0-9]/', '', $ps['lead_phone']); ?>
+                        <a href="https://wa.me/<?php echo $cleanPhone; ?>" target="_blank" style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:0.25rem 0.55rem; border-radius:4px; font-weight:800; font-size:0.75rem; text-decoration:none; display:inline-flex; align-items:center; gap:0.3rem;">
+                          <span>📲</span> <?php echo htmlspecialchars($ps['lead_phone']); ?>
+                        </a>
+                      <?php else: ?>
+                        <span style="color:#94a3b8; font-size:0.75rem;">Sin teléfono</span>
+                      <?php endif; ?>
                     </td>
                     <td style="padding:0.75rem; font-size:0.78rem; color:#0284c7; font-weight:bold;">
                       <?php echo htmlspecialchars($ps['attack_vector']); ?>
-                    </td>
-                    <td style="padding:0.75rem;">
-                      <?php if (!empty($ps['lead_email'])): ?>
-                        <strong style="color:#15803d;">✉️ <?php echo htmlspecialchars($ps['lead_email']); ?></strong>
-                      <?php else: ?>
-                        <span style="color:#94a3b8; font-size:0.75rem;">Solo probó el simulador</span>
-                      <?php endif; ?>
                     </td>
                     <td style="padding:0.75rem; text-align:center;">
                       <?php if ($ps['status'] === 'LEAD_CAPTURED'): ?>
@@ -3702,9 +3715,40 @@ $scans_list = $db->query("
             </div>
 
             <div style="margin-bottom:1.5rem;">
-              <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Vectores a Simular</label>
-              <input type="text" name="simulated_vectors" value="BEC,INVOICE_FRAUD,VISHING" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
-              <small style="color:#64748b; font-size:0.72rem;">Separados por coma: BEC, INVOICE_FRAUD, VISHING, PASSKEY_BYPASS</small>
+              <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.4rem;">Vectores a Simular en la Campaña (Selección Múltiple) *</label>
+              
+              <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:0.75rem; display:grid; grid-template-columns:1fr 1fr; gap:0.6rem;">
+                <label style="display:flex; align-items:flex-start; gap:0.45rem; font-size:0.8rem; color:#1e293b; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="BEC" checked style="margin-top:0.15rem; cursor:pointer;">
+                  <span><strong>💼 Fraude del CEO (BEC)</strong><br><small style="color:#64748b;">Transferencia urgente y confidencial</small></span>
+                </label>
+
+                <label style="display:flex; align-items:flex-start; gap:0.45rem; font-size:0.8rem; color:#1e293b; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="INVOICE_FRAUD" checked style="margin-top:0.15rem; cursor:pointer;">
+                  <span><strong>🏦 Cambio de Cuenta Proveedor</strong><br><small style="color:#64748b;">Desvío de facturas pendientes</small></span>
+                </label>
+
+                <label style="display:flex; align-items:flex-start; gap:0.45rem; font-size:0.8rem; color:#1e293b; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="VISHING" checked style="margin-top:0.15rem; cursor:pointer;">
+                  <span><strong>📞 Vishing con Voz Sintética</strong><br><small style="color:#64748b;">Llamada deepfake a directivos</small></span>
+                </label>
+
+                <label style="display:flex; align-items:flex-start; gap:0.45rem; font-size:0.8rem; color:#1e293b; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="SPEAR_PHISHING_SII" style="margin-top:0.15rem; cursor:pointer;">
+                  <span><strong>⚖️ Spear-Phishing Tributario</strong><br><small style="color:#64748b;">Notificación fraudulenta del SII</small></span>
+                </label>
+
+                <label style="display:flex; align-items:flex-start; gap:0.45rem; font-size:0.8rem; color:#1e293b; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="PASSKEY_BYPASS" style="margin-top:0.15rem; cursor:pointer;">
+                  <span><strong>🔑 AitM / Robo de Sesión 2FA</strong><br><small style="color:#64748b;">Intercepción de códigos SMS/MFA</small></span>
+                </label>
+
+                <label style="display:flex; align-items:flex-start; gap:0.45rem; font-size:0.8rem; color:#1e293b; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="QR_QUISHING" style="margin-top:0.15rem; cursor:pointer;">
+                  <span><strong>📱 Quishing (QR Malicioso)</strong><br><small style="color:#64748b;">Escaner físico o en correos</small></span>
+                </label>
+              </div>
+              <small style="color:#64748b; font-size:0.72rem; display:block; margin-top:0.35rem;">Marque las tácticas que se incluirán en el alcance de la prueba de penetración social.</small>
             </div>
 
             <div style="display:flex; justify-content:flex-end; gap:0.5rem;">

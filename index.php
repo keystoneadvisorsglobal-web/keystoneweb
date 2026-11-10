@@ -263,240 +263,6 @@ if ((!isset($_SESSION['ks_site_auth']) || $_SESSION['ks_site_auth'] !== true) &&
   </div>
 
 
-  <!-- ======================================================== -->
-  <!-- MODAL INTERACTIVO: DEMOSTRADOR RED TEAMING ASISTIDO POR IA -->
-  <!-- ======================================================== -->
-  <div id="modalRedTeamSimulator" style="display:none; position:fixed; inset:0; background:rgba(11,19,41,0.85); backdrop-filter:blur(6px); z-index:99999; align-items:center; justify-content:center; padding:1rem; overflow-y:auto;">
-    <div style="background:#131f37; border:1px solid #1e3a5f; border-radius:16px; max-width:680px; width:100%; box-shadow:0 25px 50px -12px rgba(0,0,0,0.7); overflow:hidden; margin:auto;">
-      
-      <!-- Cabecera del Modal -->
-      <div style="background:linear-gradient(135deg, #0b1329 0%, #1e293b 100%); padding:1.25rem 1.75rem; border-bottom:1px solid #1e3a5f; display:flex; justify-content:space-between; align-items:center;">
-        <div style="display:flex; align-items:center; gap:0.6rem;">
-          <span style="font-size:1.4rem;">🎭</span>
-          <div>
-            <h3 style="color:#ffffff; font-size:1.15rem; font-weight:800; margin:0;">Simulador Red Teaming Asistido por IA</h3>
-            <span style="color:#38bdf8; font-size:0.75rem; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Demostración Forense de Ingeniería Social Contextual</span>
-          </div>
-        </div>
-        <button type="button" onclick="closeRedTeamSimulatorModal()" style="background:none; border:none; color:#94a3b8; font-size:1.6rem; cursor:pointer; line-height:1;">&times;</button>
-      </div>
-
-      <!-- Cuerpo del Modal: Paso 1 Formulario -->
-      <div id="rtStepForm" style="padding:1.75rem;">
-        <p style="color:#cbd5e1; font-size:0.88rem; line-height:1.5; margin-bottom:1.25rem;">
-          Vea en tiempo real cómo un cibercriminal utiliza modelos de Inteligencia Artificial para diseñar un ataque <strong>BEC / Fraude del CEO</strong> hiperpersonalizado contra su compañía.
-        </p>
-
-        <form id="formRedTeamSim" onsubmit="runRedTeamSimulation(event)">
-          <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:1rem; margin-bottom:1rem;">
-            <div>
-              <label style="display:block; font-size:0.78rem; font-weight:700; color:#94a3b8; margin-bottom:0.35rem;">Nombre de su Empresa / Organización *</label>
-              <input type="text" id="rtCompany" required placeholder="Ej: Inversiones del Sur SpA" style="width:100%; padding:0.65rem 0.85rem; background:#0b1329; border:1px solid #334e68; border-radius:8px; color:#fff; font-size:0.9rem;">
-            </div>
-            <div>
-              <label style="display:block; font-size:0.78rem; font-weight:700; color:#94a3b8; margin-bottom:0.35rem;">Industria / Rubro *</label>
-              <select id="rtIndustry" style="width:100%; padding:0.65rem 0.85rem; background:#0b1329; border:1px solid #334e68; border-radius:8px; color:#fff; font-size:0.9rem;">
-                <option value="Construcción e Inmobiliaria">Construcción e Inmobiliaria</option>
-                <option value="Servicios Financieros & Inversiones">Servicios Financieros & Inversiones</option>
-                <option value="Retail & Comercio Mayorista">Retail & Comercio Mayorista</option>
-                <option value="Minería & Energía">Minería & Energía</option>
-                <option value="Agroindustria & Exportación">Agroindustria & Exportación</option>
-                <option value="Tecnología & Telecomunicaciones">Tecnología & Telecomunicaciones</option>
-                <option value="Salud & Clínicas">Salud & Clínicas</option>
-                <option value="Transporte & Logística">Transporte & Logística</option>
-              </select>
-            </div>
-          </div>
-
-          <div style="margin-bottom:1.5rem;">
-            <label style="display:block; font-size:0.78rem; font-weight:700; color:#94a3b8; margin-bottom:0.35rem;">Vector de Ataque a Simular *</label>
-            <select id="rtVector" style="width:100%; padding:0.65rem 0.85rem; background:#0b1329; border:1px solid #334e68; border-radius:8px; color:#fff; font-size:0.9rem;">
-              <option value="BEC_CEO_FRAUD">💼 Fraude del CEO (Transferencia urgente fuera de nómina)</option>
-              <option value="SUPPLIER_ACCOUNT_CHANGE">🏦 Cambio de Cuenta Bancaria de Proveedor Crítico</option>
-              <option value="TAX_INSPECTION_FRAUD">⚖️ Spear-Phishing Tributario / Notificación Falsa SII</option>
-            </select>
-          </div>
-
-          <button type="submit" id="btnRunRtSim" class="btn btn-primary" style="width:100%; padding:0.85rem; font-size:0.95rem; font-weight:800; background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
-            ⚡ Iniciar Simulación Forense con IA ➜
-          </button>
-        </form>
-      </div>
-
-      <!-- Estado Cargando -->
-      <div id="rtStepLoading" style="display:none; padding:3rem 1.75rem; text-align:center;">
-        <div style="font-size:2.5rem; margin-bottom:1rem; animation:spin 1s linear infinite;">⚙️</div>
-        <h4 style="color:#ffffff; font-size:1.1rem; margin-bottom:0.5rem;">Analizando Contexto Corporativo & Generando Ataque Sintético...</h4>
-        <p style="color:#94a3b8; font-size:0.85rem;">Conectando con motor de Red Teaming Cloudflare Workers AI...</p>
-      </div>
-
-      <!-- Paso 2: Resultado Forense de la Simulación -->
-      <div id="rtStepResult" style="display:none; padding:1.75rem; max-height:75vh; overflow-y:auto;">
-        
-        <!-- Ficha del Correo de Phishing Generado -->
-        <div style="background:#0b1329; border:1px solid #7f1d1d; border-radius:10px; padding:1.25rem; margin-bottom:1.25rem; box-shadow:0 4px 15px rgba(220,38,38,0.15);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:1px solid #1e293b; padding-bottom:0.5rem;">
-            <div style="font-size:0.75rem; font-weight:800; color:#ef4444; text-transform:uppercase;">🚨 Correo Generado por el Atacante (Simulación)</div>
-            <span style="font-size:0.7rem; background:#2a1215; color:#f87171; border:1px solid #7f1d1d; padding:0.15rem 0.4rem; border-radius:4px;">Vector: Simulado</span>
-          </div>
-
-          <div style="font-size:0.82rem; color:#cbd5e1; margin-bottom:0.5rem;">
-            <strong>Suplantando a:</strong> <span id="rtResImpersonated" style="color:#f87171; font-weight:bold;"></span><br>
-            <strong>Dirigido a:</strong> <span id="rtResTarget" style="color:#fff;"></span><br>
-            <strong>Asunto:</strong> <span id="rtResSubject" style="color:#38bdf8; font-weight:bold;"></span>
-          </div>
-
-          <div id="rtResBody" style="background:#131f37; border-left:3px solid #ef4444; padding:0.85rem; border-radius:6px; color:#f8fafc; font-size:0.85rem; line-height:1.5; white-space:pre-wrap; font-family:sans-serif;"></div>
-        </div>
-
-        <!-- Análisis Forense de Gatillos Psicológicos -->
-        <div style="background:#0b1329; border:1px solid #1e3a5f; border-radius:10px; padding:1rem; margin-bottom:1.25rem;">
-          <h4 style="font-size:0.82rem; font-weight:800; color:#38bdf8; text-transform:uppercase; margin-bottom:0.5rem;">🧠 Gatillos Psicológicos de Explotación</h4>
-          <div id="rtResTriggers" style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.6rem;"></div>
-          <p style="font-size:0.8rem; color:#94a3b8; margin:0;">
-            <strong style="color:#cbd5e1;">Consejo Forense de Detección:</strong> <span id="rtResTip"></span>
-          </p>
-        </div>
-
-        <!-- Blindaje DeepShield -->
-        <div style="background:rgba(5,150,105,0.1); border:1px solid #059669; border-radius:10px; padding:1rem; margin-bottom:1.5rem;">
-          <div style="font-size:0.82rem; font-weight:800; color:#34d399; text-transform:uppercase; margin-bottom:0.25rem;">🛡️ Cómo Neutraliza Keystone DeepShield este Ataque:</div>
-          <p id="rtResDefense" style="font-size:0.83rem; color:#a7f3d0; line-height:1.4; margin:0;"></p>
-        </div>
-
-        <!-- Call to Action B2B: ¿Quiere entrenar a su equipo con un plan completo? -->
-        <div style="background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border:1px solid #0284c7; border-radius:10px; padding:1.25rem; text-align:center;">
-          <h4 style="color:#ffffff; font-size:1.05rem; font-weight:800; margin-bottom:0.35rem;">¿Desea medir la vulnerabilidad real de su equipo?</h4>
-          <p style="color:#94a3b8; font-size:0.82rem; margin-bottom:1rem;">
-            Ejecutamos campañas controladas de Red Teaming, Vishing con voz sintética y entrenamiento continuo para directivos y tesorería con informe pericial bajo la Ley N° 21.459.
-          </p>
-
-          <form id="formRtLead" onsubmit="submitRtLead(event)" style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
-            <input type="hidden" id="rtSimId" value="0">
-            <input type="email" id="rtLeadEmail" required placeholder="correo.corporativo@empresa.cl" style="padding:0.6rem 0.85rem; background:#0b1329; border:1px solid #334e68; border-radius:6px; color:#fff; font-size:0.85rem; width:260px;">
-            <button type="submit" id="btnSubmitRtLead" class="btn btn-primary" style="width:auto; padding:0.6rem 1.25rem; font-size:0.85rem; font-weight:800;">
-              Solicitar Plan de Red Teaming ➜
-            </button>
-          </form>
-          <div id="rtLeadFeedback" style="display:none; color:#34d399; font-size:0.85rem; margin-top:0.75rem; font-weight:bold;">
-            ✓ Solicitud recibida. Un asesor de ciberseguridad se pondrá en contacto a la brevedad.
-          </div>
-        </div>
-
-      </div>
-
-    </div>
-  </div>
-
-  <script>
-    let currentRtSimId = 0;
-
-    function openRedTeamSimulatorModal() {
-      document.getElementById('modalRedTeamSimulator').style.display = 'flex';
-      document.getElementById('rtStepForm').style.display = 'block';
-      document.getElementById('rtStepLoading').style.display = 'none';
-      document.getElementById('rtStepResult').style.display = 'none';
-    }
-
-    function closeRedTeamSimulatorModal() {
-      document.getElementById('modalRedTeamSimulator').style.display = 'none';
-    }
-
-    async function runRedTeamSimulation(e) {
-      e.preventDefault();
-      const company = document.getElementById('rtCompany').value.trim();
-      const industry = document.getElementById('rtIndustry').value;
-      const vector = document.getElementById('rtVector').value;
-
-      document.getElementById('rtStepForm').style.display = 'none';
-      document.getElementById('rtStepLoading').style.display = 'block';
-
-      try {
-        const formData = new FormData();
-        formData.append('action', 'simulate');
-        formData.append('company_name', company);
-        formData.append('industry', industry);
-        formData.append('attack_vector', vector);
-
-        const res = await fetch('api/simulate_attack.php', {
-          method: 'POST',
-          body: formData
-        });
-
-        const data = await res.json();
-        if (data.success && data.data) {
-          const sim = data.data;
-          currentRtSimId = sim.simulation_id || 0;
-          document.getElementById('rtSimId').value = currentRtSimId;
-
-          document.getElementById('rtResImpersonated').innerText = sim.attacker_impersonated || 'Atacante Avanzado';
-          document.getElementById('rtResTarget').innerText = sim.target_profile || 'Personal de Finanzas';
-          document.getElementById('rtResSubject').innerText = sim.subject || 'Notificación Urgente';
-          document.getElementById('rtResBody').innerText = sim.email_body || '';
-
-          // Triggers
-          const triggersContainer = document.getElementById('rtResTriggers');
-          triggersContainer.innerHTML = '';
-          const triggers = sim.psychological_triggers || ['Urgencia', 'Autoridad', 'Confidencialidad'];
-          triggers.forEach(tr => {
-            const badge = document.createElement('span');
-            badge.style.cssText = 'background:#1e293b; color:#38bdf8; border:1px solid #0284c7; padding:0.15rem 0.5rem; border-radius:4px; font-size:0.75rem; font-weight:700;';
-            badge.innerText = '⚡ ' + tr;
-            triggersContainer.appendChild(badge);
-          });
-
-          document.getElementById('rtResTip').innerText = sim.detection_tip || '';
-          document.getElementById('rtResDefense').innerText = sim.deepshield_defense || '';
-
-          document.getElementById('rtStepLoading').style.display = 'none';
-          document.getElementById('rtStepResult').style.display = 'block';
-        } else {
-          alert('Hubo un inconveniente al generar la simulación. Por favor intente nuevamente.');
-          document.getElementById('rtStepLoading').style.display = 'none';
-          document.getElementById('rtStepForm').style.display = 'block';
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Error de conexión con el simulador.');
-        document.getElementById('rtStepLoading').style.display = 'none';
-        document.getElementById('rtStepForm').style.display = 'block';
-      }
-    }
-
-    async function submitRtLead(e) {
-      e.preventDefault();
-      const email = document.getElementById('rtLeadEmail').value.trim();
-      const btn = document.getElementById('btnSubmitRtLead');
-      btn.disabled = true;
-      btn.innerText = 'Enviando...';
-
-      try {
-        const formData = new FormData();
-        formData.append('action', 'capture_lead');
-        formData.append('simulation_id', currentRtSimId);
-        formData.append('email', email);
-
-        const res = await fetch('api/simulate_attack.php', {
-          method: 'POST',
-          body: formData
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById('formRtLead').style.display = 'none';
-          document.getElementById('rtLeadFeedback').style.display = 'block';
-        } else {
-          alert(data.error || 'No se pudo registrar la solicitud.');
-          btn.disabled = false;
-          btn.innerText = 'Solicitar Plan de Red Teaming ➜';
-        }
-      } catch (err) {
-        alert('Error al enviar la solicitud.');
-        btn.disabled = false;
-        btn.innerText = 'Solicitar Plan de Red Teaming ➜';
-      }
-    }
-  </script>
 
 </body>
 </html>
@@ -1734,6 +1500,273 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
         });
       }
     })();
+  </script>
+
+  <!-- ======================================================== -->
+  <!-- MODAL INTERACTIVO: DEMOSTRADOR RED TEAMING ASISTIDO POR IA -->
+  <!-- ======================================================== -->
+  <div id="modalRedTeamSimulator" style="display:none; position:fixed; inset:0; background:rgba(11,19,41,0.85); backdrop-filter:blur(6px); z-index:99999; align-items:center; justify-content:center; padding:1rem; overflow-y:auto;">
+    <div style="background:#131f37; border:1px solid #1e3a5f; border-radius:16px; max-width:680px; width:100%; box-shadow:0 25px 50px -12px rgba(0,0,0,0.7); overflow:hidden; margin:auto;">
+      
+      <!-- Cabecera del Modal -->
+      <div style="background:linear-gradient(135deg, #0b1329 0%, #1e293b 100%); padding:1.25rem 1.75rem; border-bottom:1px solid #1e3a5f; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span style="font-size:1.4rem;">🎭</span>
+          <div>
+            <h3 style="color:#ffffff; font-size:1.15rem; font-weight:800; margin:0;">Simulador Red Teaming Asistido por IA</h3>
+            <span style="color:#38bdf8; font-size:0.75rem; text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Demostración Forense de Ingeniería Social Contextual</span>
+          </div>
+        </div>
+        <button type="button" onclick="closeRedTeamSimulatorModal()" style="background:none; border:none; color:#94a3b8; font-size:1.6rem; cursor:pointer; line-height:1;">&times;</button>
+      </div>
+
+      <!-- Cuerpo del Modal: Paso 1 Formulario -->
+      <div id="rtStepForm" style="padding:1.75rem;">
+        <p style="color:#cbd5e1; font-size:0.88rem; line-height:1.5; margin-bottom:1.25rem;">
+          Vea en tiempo real cómo un cibercriminal utiliza modelos de Inteligencia Artificial para diseñar un ataque <strong>BEC / Fraude del CEO</strong> hiperpersonalizado contra su compañía.
+        </p>
+
+        <form id="formRedTeamSim" onsubmit="runRedTeamSimulation(event)">
+          <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:1rem; margin-bottom:1rem;">
+            <div>
+              <label style="display:block; font-size:0.78rem; font-weight:700; color:#94a3b8; margin-bottom:0.35rem;">Nombre de su Empresa / Organización *</label>
+              <input type="text" id="rtCompany" required placeholder="Ej: Inversiones del Sur SpA" style="width:100%; padding:0.65rem 0.85rem; background:#0b1329; border:1px solid #334e68; border-radius:8px; color:#fff; font-size:0.9rem;">
+            </div>
+            <div>
+              <label style="display:block; font-size:0.78rem; font-weight:700; color:#94a3b8; margin-bottom:0.35rem;">Industria / Rubro *</label>
+              <select id="rtIndustry" style="width:100%; padding:0.65rem 0.85rem; background:#0b1329; border:1px solid #334e68; border-radius:8px; color:#fff; font-size:0.9rem;">
+                <option value="Construcción e Inmobiliaria">Construcción e Inmobiliaria</option>
+                <option value="Servicios Financieros & Inversiones">Servicios Financieros & Inversiones</option>
+                <option value="Retail & Comercio Mayorista">Retail & Comercio Mayorista</option>
+                <option value="Minería & Energía">Minería & Energía</option>
+                <option value="Agroindustria & Exportación">Agroindustria & Exportación</option>
+                <option value="Tecnología & Telecomunicaciones">Tecnología & Telecomunicaciones</option>
+                <option value="Salud & Clínicas">Salud & Clínicas</option>
+                <option value="Transporte & Logística">Transporte & Logística</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Campos de Contactabilidad Directa (Estilo DeepShield) -->
+          <div style="background:rgba(2,132,199,0.08); border:1px solid #1e3a5f; border-radius:10px; padding:1rem; margin-bottom:1rem;">
+            <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.78rem; font-weight:800; color:#38bdf8; text-transform:uppercase; margin-bottom:0.6rem;">
+              <span>👤 Datos de Contacto del Directivo / Solicitante</span>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:0.6rem;">
+              <div>
+                <label style="display:block; font-size:0.75rem; color:#cbd5e1; margin-bottom:0.25rem;">Nombre y Cargo *</label>
+                <input type="text" id="rtContactName" required placeholder="Ej: Patricia Morales (CFO)" style="width:100%; padding:0.55rem 0.75rem; background:#0b1329; border:1px solid #334e68; border-radius:6px; color:#fff; font-size:0.85rem;">
+              </div>
+              <div>
+                <label style="display:block; font-size:0.75rem; color:#cbd5e1; margin-bottom:0.25rem;">Teléfono / WhatsApp *</label>
+                <input type="tel" id="rtPhone" required placeholder="+56 9 1234 5678" style="width:100%; padding:0.55rem 0.75rem; background:#0b1329; border:1px solid #334e68; border-radius:6px; color:#fff; font-size:0.85rem;">
+              </div>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.75rem; color:#cbd5e1; margin-bottom:0.25rem;">Correo Corporativo Oficial *</label>
+              <input type="email" id="rtEmail" required placeholder="directorio@suempresa.cl" style="width:100%; padding:0.55rem 0.75rem; background:#0b1329; border:1px solid #334e68; border-radius:6px; color:#fff; font-size:0.85rem;">
+              <small style="color:#64748b; font-size:0.72rem; margin-top:0.25rem; display:block;">Le enviaremos el reporte pericial del ejercicio a esta casilla.</small>
+            </div>
+          </div>
+
+          <div style="margin-bottom:1.5rem;">
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:#94a3b8; margin-bottom:0.35rem;">Vector de Ataque a Simular *</label>
+            <select id="rtVector" style="width:100%; padding:0.65rem 0.85rem; background:#0b1329; border:1px solid #334e68; border-radius:8px; color:#fff; font-size:0.9rem;">
+              <option value="BEC_CEO_FRAUD">💼 Fraude del CEO (Transferencia urgente fuera de nómina)</option>
+              <option value="SUPPLIER_ACCOUNT_CHANGE">🏦 Cambio de Cuenta Bancaria de Proveedor Crítico</option>
+              <option value="TAX_INSPECTION_FRAUD">⚖️ Spear-Phishing Tributario / Notificación Falsa SII</option>
+            </select>
+          </div>
+
+          <button type="submit" id="btnRunRtSim" class="btn btn-primary" style="width:100%; padding:0.85rem; font-size:0.95rem; font-weight:800; background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+            ⚡ Iniciar Simulación Forense con IA ➜
+          </button>
+        </form>
+      </div>
+
+      <!-- Estado Cargando -->
+      <div id="rtStepLoading" style="display:none; padding:3rem 1.75rem; text-align:center;">
+        <div style="font-size:2.5rem; margin-bottom:1rem; animation:spin 1s linear infinite;">⚙️</div>
+        <h4 style="color:#ffffff; font-size:1.1rem; margin-bottom:0.5rem;">Analizando Contexto Corporativo & Generando Ataque Sintético...</h4>
+        <p style="color:#94a3b8; font-size:0.85rem;">Conectando con motor de Red Teaming Cloudflare Workers AI...</p>
+      </div>
+
+      <!-- Paso 2: Resultado Forense de la Simulación -->
+      <div id="rtStepResult" style="display:none; padding:1.75rem; max-height:75vh; overflow-y:auto;">
+        
+        <!-- Ficha del Correo de Phishing Generado -->
+        <div style="background:#0b1329; border:1px solid #7f1d1d; border-radius:10px; padding:1.25rem; margin-bottom:1.25rem; box-shadow:0 4px 15px rgba(220,38,38,0.15);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:1px solid #1e293b; padding-bottom:0.5rem;">
+            <div style="font-size:0.75rem; font-weight:800; color:#ef4444; text-transform:uppercase;">🚨 Correo Generado por el Atacante (Simulación)</div>
+            <span style="font-size:0.7rem; background:#2a1215; color:#f87171; border:1px solid #7f1d1d; padding:0.15rem 0.4rem; border-radius:4px;">Vector: Simulado</span>
+          </div>
+
+          <div style="font-size:0.82rem; color:#cbd5e1; margin-bottom:0.5rem;">
+            <strong>Suplantando a:</strong> <span id="rtResImpersonated" style="color:#f87171; font-weight:bold;"></span><br>
+            <strong>Dirigido a:</strong> <span id="rtResTarget" style="color:#fff;"></span><br>
+            <strong>Asunto:</strong> <span id="rtResSubject" style="color:#38bdf8; font-weight:bold;"></span>
+          </div>
+
+          <div id="rtResBody" style="background:#131f37; border-left:3px solid #ef4444; padding:0.85rem; border-radius:6px; color:#f8fafc; font-size:0.85rem; line-height:1.5; white-space:pre-wrap; font-family:sans-serif;"></div>
+        </div>
+
+        <!-- Análisis Forense de Gatillos Psicológicos -->
+        <div style="background:#0b1329; border:1px solid #1e3a5f; border-radius:10px; padding:1rem; margin-bottom:1.25rem;">
+          <h4 style="font-size:0.82rem; font-weight:800; color:#38bdf8; text-transform:uppercase; margin-bottom:0.5rem;">🧠 Gatillos Psicológicos de Explotación</h4>
+          <div id="rtResTriggers" style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.6rem;"></div>
+          <p style="font-size:0.8rem; color:#94a3b8; margin:0;">
+            <strong style="color:#cbd5e1;">Consejo Forense de Detección:</strong> <span id="rtResTip"></span>
+          </p>
+        </div>
+
+        <!-- Blindaje DeepShield -->
+        <div style="background:rgba(5,150,105,0.1); border:1px solid #059669; border-radius:10px; padding:1rem; margin-bottom:1.5rem;">
+          <div style="font-size:0.82rem; font-weight:800; color:#34d399; text-transform:uppercase; margin-bottom:0.25rem;">🛡️ Cómo Neutraliza Keystone DeepShield este Ataque:</div>
+          <p id="rtResDefense" style="font-size:0.83rem; color:#a7f3d0; line-height:1.4; margin:0;"></p>
+        </div>
+
+        <!-- Call to Action B2B: ¿Quiere entrenar a su equipo con un plan completo? -->
+        <div style="background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border:1px solid #0284c7; border-radius:10px; padding:1.25rem; text-align:center;">
+          <h4 style="color:#ffffff; font-size:1.05rem; font-weight:800; margin-bottom:0.35rem;">¿Desea medir la vulnerabilidad real de su equipo?</h4>
+          <p style="color:#94a3b8; font-size:0.82rem; margin-bottom:1rem;">
+            Ejecutamos campañas controladas de Red Teaming, Vishing con voz sintética y entrenamiento continuo para directivos y tesorería con informe pericial bajo la Ley N° 21.459.
+          </p>
+
+          <form id="formRtLead" onsubmit="submitRtLead(event)" style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+            <input type="hidden" id="rtSimId" value="0">
+            <input type="email" id="rtLeadEmail" required placeholder="correo.corporativo@empresa.cl" style="padding:0.6rem 0.85rem; background:#0b1329; border:1px solid #334e68; border-radius:6px; color:#fff; font-size:0.85rem; width:260px;">
+            <button type="submit" id="btnSubmitRtLead" class="btn btn-primary" style="width:auto; padding:0.6rem 1.25rem; font-size:0.85rem; font-weight:800;">
+              Solicitar Plan de Red Teaming ➜
+            </button>
+          </form>
+          <div id="rtLeadFeedback" style="display:none; color:#34d399; font-size:0.85rem; margin-top:0.75rem; font-weight:bold;">
+            ✓ Solicitud recibida. Un asesor de ciberseguridad se pondrá en contacto a la brevedad.
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let currentRtSimId = 0;
+
+    function openRedTeamSimulatorModal() {
+      document.getElementById('modalRedTeamSimulator').style.display = 'flex';
+      document.getElementById('rtStepForm').style.display = 'block';
+      document.getElementById('rtStepLoading').style.display = 'none';
+      document.getElementById('rtStepResult').style.display = 'none';
+    }
+
+    function closeRedTeamSimulatorModal() {
+      document.getElementById('modalRedTeamSimulator').style.display = 'none';
+    }
+
+    async function runRedTeamSimulation(e) {
+      e.preventDefault();
+      const company = document.getElementById('rtCompany').value.trim();
+      const industry = document.getElementById('rtIndustry').value;
+      const vector = document.getElementById('rtVector').value;
+      const contactName = document.getElementById('rtContactName').value.trim();
+      const phone = document.getElementById('rtPhone').value.trim();
+      const email = document.getElementById('rtEmail').value.trim();
+
+      document.getElementById('rtStepForm').style.display = 'none';
+      document.getElementById('rtStepLoading').style.display = 'block';
+
+      try {
+        const formData = new FormData();
+        formData.append('action', 'simulate');
+        formData.append('company_name', company);
+        formData.append('industry', industry);
+        formData.append('attack_vector', vector);
+        formData.append('contact_name', contactName);
+        formData.append('phone', phone);
+        formData.append('email', email);
+
+        const res = await fetch('api/simulate_attack.php', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+        if (data.success && data.data) {
+          const sim = data.data;
+          currentRtSimId = sim.simulation_id || 0;
+          document.getElementById('rtSimId').value = currentRtSimId;
+          const leadEmailField = document.getElementById('rtLeadEmail');
+          if (leadEmailField && email) {
+            leadEmailField.value = email;
+          }
+
+          document.getElementById('rtResImpersonated').innerText = sim.attacker_impersonated || 'Atacante Avanzado';
+          document.getElementById('rtResTarget').innerText = sim.target_profile || 'Personal de Finanzas';
+          document.getElementById('rtResSubject').innerText = sim.subject || 'Notificación Urgente';
+          document.getElementById('rtResBody').innerText = sim.email_body || '';
+
+          // Triggers
+          const triggersContainer = document.getElementById('rtResTriggers');
+          triggersContainer.innerHTML = '';
+          const triggers = sim.psychological_triggers || ['Urgencia', 'Autoridad', 'Confidencialidad'];
+          triggers.forEach(tr => {
+            const badge = document.createElement('span');
+            badge.style.cssText = 'background:#1e293b; color:#38bdf8; border:1px solid #0284c7; padding:0.15rem 0.5rem; border-radius:4px; font-size:0.75rem; font-weight:700;';
+            badge.innerText = '⚡ ' + tr;
+            triggersContainer.appendChild(badge);
+          });
+
+          document.getElementById('rtResTip').innerText = sim.detection_tip || '';
+          document.getElementById('rtResDefense').innerText = sim.deepshield_defense || '';
+
+          document.getElementById('rtStepLoading').style.display = 'none';
+          document.getElementById('rtStepResult').style.display = 'block';
+        } else {
+          alert('Hubo un inconveniente al generar la simulación. Por favor intente nuevamente.');
+          document.getElementById('rtStepLoading').style.display = 'none';
+          document.getElementById('rtStepForm').style.display = 'block';
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error de conexión con el simulador.');
+        document.getElementById('rtStepLoading').style.display = 'none';
+        document.getElementById('rtStepForm').style.display = 'block';
+      }
+    }
+
+    async function submitRtLead(e) {
+      e.preventDefault();
+      const email = document.getElementById('rtLeadEmail').value.trim();
+      const btn = document.getElementById('btnSubmitRtLead');
+      btn.disabled = true;
+      btn.innerText = 'Enviando...';
+
+      try {
+        const formData = new FormData();
+        formData.append('action', 'capture_lead');
+        formData.append('simulation_id', currentRtSimId);
+        formData.append('email', email);
+
+        const res = await fetch('api/simulate_attack.php', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('formRtLead').style.display = 'none';
+          document.getElementById('rtLeadFeedback').style.display = 'block';
+        } else {
+          alert(data.error || 'No se pudo registrar la solicitud.');
+          btn.disabled = false;
+          btn.innerText = 'Solicitar Plan de Red Teaming ➜';
+        }
+      } catch (err) {
+        alert('Error al enviar la solicitud.');
+        btn.disabled = false;
+        btn.innerText = 'Solicitar Plan de Red Teaming ➜';
+      }
+    }
   </script>
 
 </body>
