@@ -840,6 +840,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
+// Acción: Crear Campaña de Red Teaming B2B
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_redteam_campaign' && isset($_SESSION['admin_logged'])) {
+    require_once __DIR__ . '/../api/RedTeamingService.php';
+    $rtService = new RedTeamingService($db);
+
+    $companyName = trim($_POST['company_name'] ?? '');
+    $contactName = trim($_POST['contact_name'] ?? '');
+    $contactEmail = trim($_POST['contact_email'] ?? '');
+    $targetDomains = trim($_POST['target_domains'] ?? '');
+    $planType = trim($_POST['plan_type'] ?? 'PROFESSIONAL');
+    $vectors = isset($_POST['simulated_vectors']) && is_array($_POST['simulated_vectors']) ? $_POST['simulated_vectors'] : ['BEC'];
+
+    $result = $rtService->createCampaign([
+        'company_name' => $companyName,
+        'contact_name' => $contactName,
+        'contact_email' => $contactEmail,
+        'target_domains' => $targetDomains,
+        'plan_type' => $planType,
+        'simulated_vectors' => $vectors,
+        'created_by' => $_SESSION['admin_user'] ?? 'admin'
+    ]);
+
+    header("Location: index.php?tab=redteaming&campaign_created=1");
+    exit;
+}
+
 // Acción: Despacho Manual de Dosier DMARC en PDF al Cliente o Descarga
 if (isset($_GET['action']) && $_GET['action'] === 'download_dmarc_dossier' && isset($_SESSION['admin_logged'])) {
     require_once __DIR__ . '/../api/DmarcMonthlyDossierPdfGenerator.php';
@@ -1545,10 +1571,10 @@ $scans_list = $db->query("
                       <input type="hidden" name="action" value="update_lead_status">
                       <input type="hidden" name="lead_id" value="<?php echo $lead['id']; ?>">
                       <select name="status" class="select-status" onchange="this.form.submit()">
-                        <option value="NUEVO" <?php echo $st === 'NUEVO' ? 'selected' : ''; ?>>ðµ NUEVO</option>
-                        <option value="CONTACTADO" <?php echo $st === 'CONTACTADO' ? 'selected' : ''; ?>>ð¡ CONTACTADO</option>
-                        <option value="EN_EVALUACION" <?php echo $st === 'EN_EVALUACION' ? 'selected' : ''; ?>>ð£ EN EVALUACIÓN</option>
-                        <option value="COTIZADO" <?php echo $st === 'COTIZADO' ? 'selected' : ''; ?>>ð¢ COTIZADO</option>
+                        <option value="NUEVO" <?php echo $st === 'NUEVO' ? 'selected' : ''; ?>>🔵 NUEVO</option>
+                        <option value="CONTACTADO" <?php echo $st === 'CONTACTADO' ? 'selected' : ''; ?>>🟡 CONTACTADO</option>
+                        <option value="EN_EVALUACION" <?php echo $st === 'EN_EVALUACION' ? 'selected' : ''; ?>>🟣 EN EVALUACIÓN</option>
+                        <option value="COTIZADO" <?php echo $st === 'COTIZADO' ? 'selected' : ''; ?>>🟢 COTIZADO</option>
                         <option value="GANADO" <?php echo $st === 'GANADO' ? 'selected' : ''; ?>>⭐ GANADO</option>
                         <option value="DESCARTADO" <?php echo $st === 'DESCARTADO' ? 'selected' : ''; ?>>❌ DESCARTADO</option>
                       </select>
@@ -1625,7 +1651,7 @@ $scans_list = $db->query("
                               data-mailto="<?php echo htmlspecialchars($lead_mailto); ?>"
                               style="background:#f1f5f9; color:#003366; border:1px solid #cbd5e1; padding:0.45rem 0.65rem; border-radius:6px; font-size:0.82rem; font-weight:700; cursor:pointer;"
                               title="Previsualizar correo, copiar o abrir en cliente local">
-                        ð️
+                        👁️
                       </button>
                     </div>
                   </td>
@@ -1755,16 +1781,16 @@ $scans_list = $db->query("
                       <input type="hidden" name="action" value="update_scan_status">
                       <input type="hidden" name="scan_id" value="<?php echo $scan['id']; ?>">
                       <select name="status" class="select-status" onchange="this.form.submit()" style="<?php echo $has_replied ? 'border-color:#16a34a; background:#f0fdf4; color:#166534;' : ''; ?>">
-                        <option value="nuevo" <?php echo $sc_status === 'nuevo' ? 'selected' : ''; ?>>ðµ NUEVO</option>
-                        <option value="PROPUESTA_ENVIADA" <?php echo $sc_status === 'PROPUESTA_ENVIADA' ? 'selected' : ''; ?>>ð¡ PROPUESTA ENVIADA</option>
-                        <option value="CLIENTE_RESPONDIO" <?php echo $sc_status === 'CLIENTE_RESPONDIO' ? 'selected' : ''; ?>>ð¢ CLIENTE RESPONDIÓ ð¬</option>
-                        <option value="EN_EVALUACION" <?php echo $sc_status === 'EN_EVALUACION' ? 'selected' : ''; ?>>ð£ EN EVALUACIÓN</option>
+                        <option value="nuevo" <?php echo $sc_status === 'nuevo' ? 'selected' : ''; ?>>🔵 NUEVO</option>
+                        <option value="PROPUESTA_ENVIADA" <?php echo $sc_status === 'PROPUESTA_ENVIADA' ? 'selected' : ''; ?>>🟡 PROPUESTA ENVIADA</option>
+                        <option value="CLIENTE_RESPONDIO" <?php echo $sc_status === 'CLIENTE_RESPONDIO' ? 'selected' : ''; ?>>🟢 CLIENTE RESPONDIÓ 💬</option>
+                        <option value="EN_EVALUACION" <?php echo $sc_status === 'EN_EVALUACION' ? 'selected' : ''; ?>>🟣 EN EVALUACIÓN</option>
                         <option value="CERRADO_GANADO" <?php echo $sc_status === 'CERRADO_GANADO' ? 'selected' : ''; ?>>⭐ GANADO / CONTRATADO</option>
                         <option value="DESCARTADO" <?php echo $sc_status === 'DESCARTADO' ? 'selected' : ''; ?>>❌ DESCARTADO</option>
                       </select>
                       <?php if ($replies_count > 0): ?>
                         <a href="index.php?tab=replies" class="badge-status status-respondio" style="text-decoration:none; font-size:0.7rem; padding:0.15rem 0.5rem;" title="Haga clic para ver la respuesta recibida en Titan Mail">
-                          ð¬ <?php echo $replies_count; ?> <?php echo $replies_count === 1 ? 'respuesta' : 'respuestas'; ?>
+                          💬 <?php echo $replies_count; ?> <?php echo $replies_count === 1 ? 'respuesta' : 'respuestas'; ?>
                         </a>
                       <?php endif; ?>
                     </form>
@@ -1777,7 +1803,7 @@ $scans_list = $db->query("
                         $btn_label = 'Ofrecer Radiografía 72h';
                         if ($has_replied) {
                           $btn_bg = '#16a34a';
-                          $btn_label = 'ð¬ Cliente Respondió';
+                          $btn_label = '💬 Cliente Respondió';
                         } elseif ($is_sent) {
                           $btn_bg = '#047857';
                           $btn_label = '✓ Enviada';
@@ -1790,7 +1816,7 @@ $scans_list = $db->query("
                               data-email="<?php echo htmlspecialchars($to_email); ?>"
                               title="Enviar propuesta directamente al cliente vía SMTP Titan"
                               style="background:<?php echo $btn_bg; ?>; color:#ffffff; padding:0.45rem 0.85rem; border:none; border-radius:6px; font-size:0.82rem; font-weight:700; display:inline-flex; align-items:center; gap:0.35rem; cursor:pointer; box-shadow:0 2px 6px rgba(5,150,105,0.25); white-space:nowrap;">
-                        <span><?php echo $btn_label; ?></span> ð¡️
+                        <span><?php echo $btn_label; ?></span> 🛡️
                       </button>
                       <button type="button" 
                               class="btn-preview-email"
@@ -1801,7 +1827,7 @@ $scans_list = $db->query("
                               data-mailto="<?php echo htmlspecialchars($mailto_link); ?>"
                               style="background:#f1f5f9; color:#003366; border:1px solid #cbd5e1; padding:0.45rem 0.65rem; border-radius:6px; font-size:0.82rem; font-weight:700; cursor:pointer;"
                               title="Previsualizar correo, copiar o abrir en cliente local">
-                        ð️
+                        👁️
                       </button>
                     </div>
                   </td>
@@ -1837,7 +1863,7 @@ $scans_list = $db->query("
 
           <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem;">
             <button id="btnCopyEmail" style="background:#0284c7; color:#ffffff; border:none; padding:0.75rem 1.25rem; border-radius:6px; font-weight:700; font-size:0.9rem; cursor:pointer;">
-              ð Copiar al Portapapeles
+              📋 Copiar al Portapapeles
             </button>
             <a id="modalMailtoBtn" href="#" style="background:#059669; color:#ffffff; text-decoration:none; padding:0.75rem 1.25rem; border-radius:6px; font-weight:700; font-size:0.9rem;">
               ✉️ Abrir en Outlook / Mail
@@ -1851,15 +1877,15 @@ $scans_list = $db->query("
       <div class="table-container">
         <div class="table-header">
           <div>
-            <h3 style="margin-bottom:0.25rem;">ð¬ Respuestas de Clientes & Prospectos (Seguimiento Automático IMAP)</h3>
+            <h3 style="margin-bottom:0.25rem;">📬 Respuestas de Clientes & Prospectos (Seguimiento Automático IMAP)</h3>
             <p style="font-size:0.85rem; color:#64748b; margin:0;">Mensajes recibidos en la casilla corporativa <code>contacto@keystoneadvisors.cl</code> vinculados a leads y escaneos.</p>
           </div>
           <div style="display:flex; align-items:center; gap:0.6rem;">
             <button type="button" id="btnSyncImap" style="background:#003366; color:#ffffff; border:none; padding:0.6rem 1.1rem; border-radius:6px; font-weight:700; font-size:0.85rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 2px 6px rgba(0,51,102,0.25);">
-              <span>ð Sincronizar Casilla Ahora</span>
+              <span>🔄 Sincronizar Casilla Ahora</span>
             </button>
             <button type="button" id="btnClearReplies" style="background:#f1f5f9; color:#991b1b; border:1px solid #fecaca; padding:0.6rem 0.9rem; border-radius:6px; font-weight:700; font-size:0.85rem; cursor:pointer;" title="Vaciar historial de respuestas locales">
-              ð️ Limpiar Vista
+              🗑️ Limpiar Vista
             </button>
           </div>
         </div>
@@ -1894,9 +1920,9 @@ $scans_list = $db->query("
                   </td>
                   <td>
                     <?php if ($rep['lead_id']): ?>
-                      <span class="badge-status status-evaluacion" title="Lead asociado">ð¼ Lead #<?php echo $rep['lead_id']; ?> (<?php echo htmlspecialchars($rep['lead_company'] ?: $rep['lead_name']); ?>)</span>
+                      <span class="badge-status status-evaluacion" title="Lead asociado">💼 Lead #<?php echo $rep['lead_id']; ?> (<?php echo htmlspecialchars($rep['lead_company'] ?: $rep['lead_name']); ?>)</span>
                     <?php elseif ($rep['scan_id']): ?>
-                      <span class="badge-status status-contactado" title="Escáner asociado">ð¡️ Escáner #<?php echo $rep['scan_id']; ?></span>
+                      <span class="badge-status status-contactado" title="Escáner asociado">🛡️ Escáner #<?php echo $rep['scan_id']; ?></span>
                     <?php else: ?>
                       <span style="font-size:0.75rem; color:#94a3b8;">Contacto Directo</span>
                     <?php endif; ?>
@@ -1940,12 +1966,12 @@ $scans_list = $db->query("
       ?>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
         <div>
-          <h2 style="font-size:1.5rem; font-weight:800; color:#0f172a; margin-bottom:0.25rem;">ð¡️ DeepShield Treasury - Consola de Operaciones</h2>
+          <h2 style="font-size:1.5rem; font-weight:800; color:#0f172a; margin-bottom:0.25rem;">🛡️ DeepShield Treasury - Consola de Operaciones</h2>
           <p style="color:#64748b; font-size:0.9rem;">Gobernanza de Empresas Clientes, Monitoreo de Canales y Auditoría Forense Fuera de Banda (OOB).</p>
         </div>
         <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
           <button onclick="document.getElementById('modalProvisionTenant').style.display='flex';" class="btn" style="background:#0284c7; color:#fff; padding:0.75rem 1.25rem; font-weight:700; border-radius:8px; border:none; cursor:pointer;">
-            ð¢ + Aprovisionar Nueva Empresa
+            🏢 + Aprovisionar Nueva Empresa
           </button>
           <button onclick="document.getElementById('modalNewOrder').style.display='flex';" class="btn" style="background:linear-gradient(135deg, #059669 0%, #10b981 100%); color:#fff; padding:0.75rem 1.25rem; font-weight:700; border-radius:8px; border:none; cursor:pointer; box-shadow:0 4px 12px rgba(16,185,129,0.3);">
             + Emitir Orden Manual
@@ -1981,7 +2007,7 @@ $scans_list = $db->query("
       <div class="card" style="padding:1.5rem; background:#fff; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:2rem; box-shadow:0 4px 12px rgba(0,0,0,0.02);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:0.5rem;">
           <div>
-            <h3 style="font-size:1.15rem; color:#0f172a; margin-bottom:0.25rem; font-weight:800;">ð¢ Empresas Habilitadas en DeepShield (<?php echo count($tenants); ?>)</h3>
+            <h3 style="font-size:1.15rem; color:#0f172a; margin-bottom:0.25rem; font-weight:800;">🏢 Empresas Habilitadas en DeepShield (<?php echo count($tenants); ?>)</h3>
             <span style="font-size:0.82rem; color:#64748b;">Gobernanza de Clientes, Credenciales de Operador, Instancias WhatsApp Dedicadas y Control de Ciclo de Vida</span>
           </div>
           <button onclick="document.getElementById('modalProvisionTenant').style.display='flex';" style="background:#0284c7; color:#fff; border:none; padding:0.5rem 1rem; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer;">
@@ -2016,12 +2042,12 @@ $scans_list = $db->query("
                     </td>
                     <td style="padding:0.85rem 1rem;">
                       <strong><?php echo htmlspecialchars($ten['primary_approver_name']); ?></strong><br>
-                      <span style="color:#64748b; font-size:0.78rem;">ð² <?php echo htmlspecialchars($ten['primary_approver_phone']); ?><br>✉️ <?php echo htmlspecialchars($ten['primary_approver_email']); ?></span>
+                      <span style="color:#64748b; font-size:0.78rem;">📲 <?php echo htmlspecialchars($ten['primary_approver_phone']); ?><br>✉️ <?php echo htmlspecialchars($ten['primary_approver_email']); ?></span>
                     </td>
                     <td style="padding:0.85rem 1rem;">
                       <strong><?php echo htmlspecialchars($ten['treasury_operator_name']); ?></strong><br>
                       <span style="color:#64748b; font-size:0.78rem;">✉️ <?php echo htmlspecialchars($ten['treasury_operator_email']); ?></span><br>
-                      <a href="/shield/portal.php" target="_blank" style="color:#0284c7; font-size:0.75rem; text-decoration:none; font-weight:700;">ð Abrir Portal Cliente ↗</a>
+                      <a href="/shield/portal.php" target="_blank" style="color:#0284c7; font-size:0.75rem; text-decoration:none; font-weight:700;">🔗 Abrir Portal Cliente ↗</a>
                     </td>
                     <td style="padding:0.85rem 1rem;">
                       <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.25rem;">
@@ -2034,16 +2060,16 @@ $scans_list = $db->query("
                         Consultando...
                       </div>
                       <button onclick="openWhatsAppModal('<?php echo htmlspecialchars($ten['whatsapp_instance'] ?? 'keystone-general'); ?>', '<?php echo htmlspecialchars($ten['company_name']); ?>')" style="background:#10b981; color:#fff; border:none; padding:0.25rem 0.55rem; border-radius:4px; font-size:0.72rem; cursor:pointer; font-weight:700;">
-                        ð² Ver / Conectar QR
+                        📲 Ver / Conectar QR
                       </button>
                     </td>
                     <td style="padding:0.85rem 1rem;">
                       <?php if ($ten['status'] === 'ACTIVE'): ?>
-                        <span style="background:rgba(16,185,129,0.15); color:#059669; padding:0.25rem 0.6rem; border-radius:9999px; font-weight:700; font-size:0.75rem;">ð¢ ACTIVO</span>
+                        <span style="background:rgba(16,185,129,0.15); color:#059669; padding:0.25rem 0.6rem; border-radius:9999px; font-weight:700; font-size:0.75rem;">🟢 ACTIVO</span>
                       <?php elseif ($ten['status'] === 'SUSPENDED'): ?>
                         <span style="background:rgba(245,158,11,0.15); color:#d97706; padding:0.25rem 0.6rem; border-radius:9999px; font-weight:700; font-size:0.75rem;">⏸️ SUSPENDIDO</span>
                       <?php else: ?>
-                        <span style="background:rgba(239,68,68,0.15); color:#dc2626; padding:0.25rem 0.6rem; border-radius:9999px; font-weight:700; font-size:0.75rem;">ð´ DADO DE BAJA</span>
+                        <span style="background:rgba(239,68,68,0.15); color:#dc2626; padding:0.25rem 0.6rem; border-radius:9999px; font-weight:700; font-size:0.75rem;">🔴 DADO DE BAJA</span>
                       <?php endif; ?>
                     </td>
                     <td style="padding:0.85rem 1rem; text-align:center;">
@@ -2090,7 +2116,7 @@ $scans_list = $db->query("
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:1rem;">
           <div>
             <h3 style="font-size:1.15rem; color:#0f172a; margin-bottom:0.25rem; font-weight:800;">
-              ð Bitácora Forense & Soporte de Órdenes Críticas (<?php echo number_format($totalOrders); ?>)
+              📋 Bitácora Forense & Soporte de Órdenes Críticas (<?php echo number_format($totalOrders); ?>)
             </h3>
             <span style="font-size:0.82rem; color:#64748b;">Monitoreo centralizado para soporte L2, asistencia a CFOs y detección de alertas rojas en curso</span>
           </div>
@@ -2108,7 +2134,7 @@ $scans_list = $db->query("
           <div style="min-width:180px;">
             <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Filtrar por Empresa</label>
             <select name="f_tenant" style="width:100%; padding:0.5rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#fff;">
-              <option value="">ð¢ Todas las Empresas</option>
+              <option value="">🏢 Todas las Empresas</option>
               <?php foreach ($tenants as $t): ?>
                 <option value="<?php echo htmlspecialchars($t['tenant_slug']); ?>" <?php echo $filter_tenant === $t['tenant_slug'] ? 'selected' : ''; ?>>
                   <?php echo htmlspecialchars($t['company_name']); ?>
@@ -2131,15 +2157,15 @@ $scans_list = $db->query("
           <div style="min-width:160px;">
             <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Bandeja Operador L2</label>
             <select name="f_operator" style="width:100%; padding:0.5rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#fff;">
-              <option value="">ð¥ Todos los Casos</option>
-              <option value="UNASSIGNED" <?php echo $filter_operator === 'UNASSIGNED' ? 'selected' : ''; ?>>ð¥ Sin Asignar (Libres)</option>
+              <option value="">👥 Todos los Casos</option>
+              <option value="UNASSIGNED" <?php echo $filter_operator === 'UNASSIGNED' ? 'selected' : ''; ?>>📥 Sin Asignar (Libres)</option>
               <option value="MINE" <?php echo $filter_operator === 'MINE' ? 'selected' : ''; ?>>⭐ Mis Asignadas (<?php echo htmlspecialchars($current_admin_user); ?>)</option>
             </select>
           </div>
 
           <div style="align-self:flex-end; display:flex; gap:0.5rem;">
             <button type="submit" style="background:#0284c7; color:#fff; border:none; padding:0.52rem 1.1rem; border-radius:6px; font-weight:700; font-size:0.85rem; cursor:pointer;">
-              ð Filtrar
+              🔍 Filtrar
             </button>
             <?php if (!empty($filter_search) || !empty($filter_tenant) || !empty($filter_status)): ?>
               <a href="index.php?tab=treasury" style="background:#e2e8f0; color:#475569; padding:0.52rem 0.85rem; border-radius:6px; font-weight:700; font-size:0.85rem; text-decoration:none;">
@@ -2180,7 +2206,7 @@ $scans_list = $db->query("
                   <tr style="border-bottom:1px solid #f1f5f9; font-size:0.85rem; <?php echo $isRejected ? 'background:rgba(239,68,68,0.06);' : ($isPending && $minutesElapsed >= 15 ? 'background:rgba(245,158,11,0.06);' : ''); ?>">
                     <td style="padding:0.85rem 1rem;">
                       <strong style="color:#0284c7; font-size:0.9rem;"><?php echo htmlspecialchars($ord['order_code']); ?></strong><br>
-                      <span style="color:#64748b; font-size:0.75rem;">ð <?php echo substr($ord['created_at'], 0, 16); ?></span><br>
+                      <span style="color:#64748b; font-size:0.75rem;">📅 <?php echo substr($ord['created_at'], 0, 16); ?></span><br>
                       <?php if ($isPending): ?>
                         <?php if ($minutesElapsed >= 30): ?>
                           <span style="display:inline-block; margin-top:0.25rem; font-size:0.72rem; font-weight:800; color:#dc2626; background:#fee2e2; padding:0.15rem 0.45rem; border-radius:4px; animation:pulseGlow 2s infinite;">
@@ -2243,7 +2269,7 @@ $scans_list = $db->query("
                             </span>
                           <?php else: ?>
                             <span style="font-size:0.72rem; background:#f1f5f9; color:#475569; padding:0.15rem 0.4rem; border-radius:4px; font-weight:700; display:inline-block;" title="En gestión por otro compañero">
-                              ð En Atención: <?php echo htmlspecialchars($ord['assigned_to']); ?>
+                              🔒 En Atención: <?php echo htmlspecialchars($ord['assigned_to']); ?>
                             </span>
                           <?php endif; ?>
                         <?php else: ?>
@@ -2257,7 +2283,7 @@ $scans_list = $db->query("
                         <?php if ($isPending || $isRejected): ?>
                           <?php if (empty($ord['assigned_to'])): ?>
                             <button onclick="claimOrder(<?php echo $ord['id']; ?>)" style="background:#0f172a; color:#fff; border:none; padding:0.3rem 0.6rem; border-radius:6px; font-size:0.73rem; font-weight:700; cursor:pointer; width:100%;" title="Tomar este caso para evitar colisión con otro operador">
-                              ð¤ Tomar Caso
+                              👤 Tomar Caso
                             </button>
                           <?php elseif ($ord['assigned_to'] === $current_admin_user): ?>
                             <button onclick="releaseOrder(<?php echo $ord['id']; ?>)" style="background:#e2e8f0; color:#475569; border:none; padding:0.3rem 0.6rem; border-radius:6px; font-size:0.73rem; font-weight:700; cursor:pointer; width:100%;" title="Liberar este caso a la bandeja general">
@@ -2268,18 +2294,18 @@ $scans_list = $db->query("
 
                         <?php if ($isRejected): ?>
                           <button onclick='openBecProtocolModal(<?php echo json_encode($ord, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP); ?>)' style="background:#dc2626; color:#fff; border:none; padding:0.35rem 0.65rem; border-radius:6px; font-size:0.75rem; font-weight:800; cursor:pointer; width:100%; box-shadow:0 2px 6px rgba(220,38,38,0.3);" title="Abrir protocolo de contención de fraude BEC">
-                            ð¨ Protocolo BEC
+                            🚨 Protocolo BEC
                           </button>
                         <?php endif; ?>
 
                         <?php if ($isPending): ?>
                           <button onclick="resendOobAlert(<?php echo $ord['id']; ?>, '<?php echo htmlspecialchars($ord['order_code']); ?>')" class="btn-resend-oob" style="background:#f59e0b; color:#fff; border:none; padding:0.35rem 0.65rem; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; width:100%;" title="Reenviar mensaje interactivo de WhatsApp al directivo">
-                            ð² Reenviar OOB
+                            📲 Reenviar OOB
                           </button>
                         <?php endif; ?>
 
                         <a href="/shield/verify.php?token=<?php echo htmlspecialchars($ord['token_hash']); ?>" target="_blank" style="background:#0284c7; color:#fff; padding:0.3rem 0.65rem; border-radius:6px; font-size:0.75rem; text-decoration:none; font-weight:700; width:100%; text-align:center; display:block;">
-                          ð️ Abrir Link
+                          👁️ Abrir Link
                         </a>
                       </div>
                     </td>
@@ -2320,7 +2346,7 @@ $scans_list = $db->query("
       <div id="modalNewOrder" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center; padding:1rem;">
         <div style="background:#fff; border-radius:12px; width:100%; max-width:550px; padding:2rem; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-            <h3 style="font-size:1.25rem; font-weight:800; color:#0f172a;">ð¡️ Nueva Orden Crítica para Blindaje</h3>
+            <h3 style="font-size:1.25rem; font-weight:800; color:#0f172a;">🛡️ Nueva Orden Crítica para Blindaje</h3>
             <button onclick="document.getElementById('modalNewOrder').style.display='none';" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
           </div>
           <form method="POST" action="index.php?tab=treasury">
@@ -2368,7 +2394,7 @@ $scans_list = $db->query("
               <input type="email" name="approver_email" required value="contacto@keystoneadvisors.cl" style="width:100%; padding:0.65rem; border:1px solid #cbd5e1; border-radius:6px;">
             </div>
             <button type="submit" style="width:100%; background:linear-gradient(135deg, #059669 0%, #10b981 100%); color:#fff; border:none; padding:0.85rem; border-radius:8px; font-weight:700; cursor:pointer;">
-              Generar Orden & Enlace OOB ð¡️
+              Generar Orden & Enlace OOB 🛡️
             </button>
           </form>
         </div>
@@ -2379,7 +2405,7 @@ $scans_list = $db->query("
       <div id="modalProvisionTenant" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center; padding:1rem;">
         <div style="background:#fff; border-radius:12px; width:100%; max-width:600px; padding:2rem; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); max-height:90vh; overflow-y:auto;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-            <h3 style="font-size:1.25rem; font-weight:800; color:#0f172a;">ð¢ Aprovisionar Nueva Empresa Cliente</h3>
+            <h3 style="font-size:1.25rem; font-weight:800; color:#0f172a;">🏢 Aprovisionar Nueva Empresa Cliente</h3>
             <button onclick="document.getElementById('modalProvisionTenant').style.display='none';" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
           </div>
           <form method="POST" action="index.php?tab=treasury">
@@ -2441,7 +2467,7 @@ $scans_list = $db->query("
             </div>
 
             <button type="submit" style="width:100%; background:#0284c7; color:#fff; border:none; padding:0.85rem; border-radius:8px; font-weight:700; cursor:pointer;">
-              Habilitar Empresa & Emitir Licencia API ð¢
+              Habilitar Empresa & Emitir Licencia API 🏢
             </button>
           </form>
         </div>
@@ -2451,7 +2477,7 @@ $scans_list = $db->query("
       <div id="modalWhatsAppQr" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center; padding:1rem;">
         <div style="background:#fff; border-radius:12px; width:100%; max-width:440px; padding:2rem; text-align:center; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-            <h3 style="font-size:1.15rem; font-weight:800; color:#0f172a;" id="qrModalTitle">ð² Vincular Chip WhatsApp</h3>
+            <h3 style="font-size:1.15rem; font-weight:800; color:#0f172a;" id="qrModalTitle">📲 Vincular Chip WhatsApp</h3>
             <button onclick="closeWhatsAppModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
           </div>
           <p style="font-size:0.85rem; color:#64748b; margin-bottom:1.25rem;">Escanee este código con WhatsApp desde el celular de la empresa (Dispositivos Vinculados) para autorizar envíos.</p>
@@ -2601,7 +2627,7 @@ $scans_list = $db->query("
             </div>
 
             <button type="submit" style="width:100%; background:#0284c7; color:#fff; border:none; padding:0.85rem; border-radius:8px; font-weight:700; cursor:pointer;">
-              Guardar Cambios de Empresa ð¾
+              Guardar Cambios de Empresa 💾
             </button>
           </form>
         </div>
@@ -2613,7 +2639,7 @@ $scans_list = $db->query("
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.25rem;">
             <div>
               <div style="display:inline-flex; align-items:center; gap:0.4rem; background:#fee2e2; color:#b91c1c; font-size:0.75rem; font-weight:800; padding:0.25rem 0.6rem; border-radius:99px; text-transform:uppercase; margin-bottom:0.4rem;">
-                ð¨ ALERTA ROJA • INCIDENTE DE SEGURIDAD EN CURSO
+                🚨 ALERTA ROJA • INCIDENTE DE SEGURIDAD EN CURSO
               </div>
               <h3 style="font-size:1.3rem; font-weight:800; color:#0f172a; margin:0;">
                 Protocolo de Respuesta a Fraude BEC (<span id="bec_order_code"></span>)
@@ -2625,12 +2651,12 @@ $scans_list = $db->query("
           <!-- Resumen de la Transacción Bloqueada -->
           <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1.25rem; font-size:0.85rem;">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-              <div><strong>ð¢ Empresa Cliente:</strong> <span id="bec_company"></span></div>
-              <div><strong>ð° Monto Detenido:</strong> <span id="bec_amount" style="font-weight:800; color:#dc2626;"></span></div>
-              <div><strong>ð¤ Beneficiario Sospechoso:</strong> <span id="bec_beneficiary"></span></div>
-              <div><strong>ð¦ Banco / Cuenta:</strong> <span id="bec_bank"></span></div>
-              <div><strong>ð² Directivo que Bloqueó:</strong> <span id="bec_approver"></span></div>
-              <div><strong>ð Clave de Control:</strong> <code id="bec_challenge" style="color:#0284c7; font-weight:800;"></code></div>
+              <div><strong>🏢 Empresa Cliente:</strong> <span id="bec_company"></span></div>
+              <div><strong>💰 Monto Detenido:</strong> <span id="bec_amount" style="font-weight:800; color:#dc2626;"></span></div>
+              <div><strong>👤 Beneficiario Sospechoso:</strong> <span id="bec_beneficiary"></span></div>
+              <div><strong>🏦 Banco / Cuenta:</strong> <span id="bec_bank"></span></div>
+              <div><strong>📲 Directivo que Bloqueó:</strong> <span id="bec_approver"></span></div>
+              <div><strong>🔐 Clave de Control:</strong> <code id="bec_challenge" style="color:#0284c7; font-weight:800;"></code></div>
             </div>
             <div style="margin-top:0.5rem; font-size:0.75rem; color:#64748b; border-top:1px dashed #cbd5e1; padding-top:0.4rem;">
               <strong>Sello Criptográfico Forense:</strong> <code id="bec_hash" style="word-break:break-all;"></code>
@@ -2639,12 +2665,12 @@ $scans_list = $db->query("
 
           <!-- Guía Operativa Paso a Paso para el Operador Keystone -->
           <h4 style="font-size:0.95rem; color:#0f172a; margin-bottom:0.75rem; font-weight:800;">
-            ð ️ Checklist Operativo para el Operador Keystone (Protocolo de 4 Pasos):
+            🛠️ Checklist Operativo para el Operador Keystone (Protocolo de 4 Pasos):
           </h4>
 
           <div style="display:flex; flex-direction:column; gap:0.75rem; font-size:0.85rem; color:#334155;">
             <div style="display:flex; gap:0.75rem; background:#fff; border:1px solid #e2e8f0; border-left:4px solid #dc2626; padding:0.75rem; border-radius:6px;">
-              <span style="font-size:1.2rem;">ð</span>
+              <span style="font-size:1.2rem;">📞</span>
               <div>
                 <strong>Paso 1: Llamada Inmediata Fuera de Banda (OOB)</strong><br>
                 Contacte telefónicamente de inmediato al CFO y al Operador de Tesorería. Confirme si el directivo presionó el botón deliberadamente y si la factura o cambio de cuenta provino de un correo electrónico sospechoso o llamada de voz con IA.
@@ -2652,7 +2678,7 @@ $scans_list = $db->query("
             </div>
 
             <div style="display:flex; gap:0.75rem; background:#fff; border:1px solid #e2e8f0; border-left:4px solid #f59e0b; padding:0.75rem; border-radius:6px;">
-              <span style="font-size:1.2rem;">ð¦</span>
+              <span style="font-size:1.2rem;">🏦</span>
               <div>
                 <strong>Paso 2: Congelamiento Preventivo en Portal Bancario</strong><br>
                 Instruya a Tesorería a bloquear la cuenta corriente destino en el portal bancario y no liberar pagos manuales, cheques ni vales vista hacia dicho RUT hasta que se complete la verificación del proveedor legítimo.
@@ -2661,7 +2687,7 @@ $scans_list = $db->query("
 
             <div style="display:flex; gap:0.75rem; background:#fff; border:1px solid #e2e8f0; border-left:4px solid #0284c7; padding:0.75rem; border-radius:6px; flex-direction:column;">
               <div style="display:flex; gap:0.5rem; align-items:center;">
-                <span style="font-size:1.2rem;">ð</span>
+                <span style="font-size:1.2rem;">🔍</span>
                 <strong>Paso 3: Triangulación de Correo & Auditoría Forense SPF/DMARC</strong>
               </div>
               <div style="font-size:0.82rem; color:#475569;">
@@ -2672,10 +2698,10 @@ $scans_list = $db->query("
               <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:0.75rem; margin-top:0.4rem;">
                 <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.6rem;">
                   <button type="button" onclick="syncBecImapAuto()" id="btnSyncBecImap" style="background:#0284c7; color:#fff; border:none; padding:0.45rem 0.85rem; border-radius:6px; font-weight:700; font-size:0.78rem; cursor:pointer;">
-                    ð¥ Sincronizar desde contacto@keystoneadvisors.cl
+                    📥 Sincronizar desde contacto@keystoneadvisors.cl
                   </button>
                   <label style="background:#0f172a; color:#fff; padding:0.45rem 0.85rem; border-radius:6px; font-weight:700; font-size:0.78rem; cursor:pointer;">
-                    ð Subir Archivo .EML
+                    📂 Subir Archivo .EML
                     <input type="file" id="bec_eml_file" accept=".eml,.msg,.txt" style="display:none;" onchange="uploadBecEmlFile()">
                   </label>
                 </div>
@@ -2689,7 +2715,7 @@ $scans_list = $db->query("
 
             <div style="display:flex; gap:0.75rem; background:#fff; border:1px solid #e2e8f0; border-left:4px solid #10b981; padding:0.75rem; border-radius:6px; flex-direction:column;">
               <div style="display:flex; gap:0.5rem; align-items:center;">
-                <span style="font-size:1.2rem;">ð</span>
+                <span style="font-size:1.2rem;">📄</span>
                 <strong>Paso 4: Emisión de Dosier Criptográfico para Denuncia Legal (PDI / Fiscalía)</strong>
               </div>
               <div style="font-size:0.82rem; color:#475569;">
@@ -3483,6 +3509,16 @@ $scans_list = $db->query("
       $capturedLeadsCount = (int)$db->query("SELECT COUNT(*) FROM redteam_simulations WHERE status = 'LEAD_CAPTURED'")->fetchColumn();
       ?>
 
+      <?php if (isset($_GET['campaign_created'])): ?>
+        <div style="background:#ecfdf5; border:1px solid #6ee7b7; border-radius:10px; padding:1rem 1.25rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:0.75rem; color:#065f46; font-size:0.9rem;">
+          <span style="font-size:1.4rem;">✅</span>
+          <div>
+            <strong>¡Campaña Corporativa de Red Teaming Habilitada con Éxito!</strong>
+            <div style="font-size:0.8rem; color:#047857; margin-top:0.15rem;">La campaña ha sido aprovisionada con sus vectores correspondientes y el equipo de simulación ya se encuentra listo para iniciar el programa.</div>
+          </div>
+        </div>
+      <?php endif; ?>
+
       <!-- Header de la Suite Red Teaming -->
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:1.75rem; margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
         <div>
@@ -3706,10 +3742,10 @@ $scans_list = $db->query("
               </div>
               <div>
                 <label style="display:block; font-size:0.78rem; font-weight:700; color:#475569; margin-bottom:0.25rem;">Plan Contratado</label>
-                <select name="plan_type" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
-                  <option value="STARTER">Starter (USD $1.200)</option>
-                  <option value="PROFESSIONAL" selected>Professional (USD $2.500)</option>
-                  <option value="ENTERPRISE">Enterprise (USD $4.800)</option>
+                <select name="plan_type" id="rtPlanSelect" onchange="syncRedTeamPlanVectors(this.value)" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; font-weight:700; color:#003366;">
+                  <option value="STARTER">Starter (USD $1.200) — 2 Vectores</option>
+                  <option value="PROFESSIONAL" selected>Professional (USD $2.500) — 4 Vectores</option>
+                  <option value="ENTERPRISE">Enterprise (USD $4.800) — Cobertura Total (6 Vectores)</option>
                 </select>
               </div>
             </div>
@@ -3729,8 +3765,8 @@ $scans_list = $db->query("
                 </label>
 
                 <label style="display:flex; align-items:flex-start; gap:0.45rem; font-size:0.8rem; color:#1e293b; cursor:pointer;">
-                  <input type="checkbox" name="simulated_vectors[]" value="VISHING" checked style="margin-top:0.15rem; cursor:pointer;">
-                  <span><strong>📞 Vishing con Voz Sintética</strong><br><small style="color:#64748b;">Llamada deepfake a directivos</small></span>
+                  <input type="checkbox" name="simulated_vectors[]" value="VISHING" style="margin-top:0.15rem; cursor:pointer;">
+                  <span><strong>📞 Vishing con Voz Sintética</strong><br><small style="color:#64748b;">Llamada deepfake a directivos (Enterprise)</small></span>
                 </label>
 
                 <label style="display:flex; align-items:flex-start; gap:0.45rem; font-size:0.8rem; color:#1e293b; cursor:pointer;">
@@ -3739,12 +3775,12 @@ $scans_list = $db->query("
                 </label>
 
                 <label style="display:flex; align-items:flex-start; gap:0.45rem; font-size:0.8rem; color:#1e293b; cursor:pointer;">
-                  <input type="checkbox" name="simulated_vectors[]" value="PASSKEY_BYPASS" style="margin-top:0.15rem; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="PASSKEY_BYPASS" checked style="margin-top:0.15rem; cursor:pointer;">
                   <span><strong>🔑 AitM / Robo de Sesión 2FA</strong><br><small style="color:#64748b;">Intercepción de códigos SMS/MFA</small></span>
                 </label>
 
                 <label style="display:flex; align-items:flex-start; gap:0.45rem; font-size:0.8rem; color:#1e293b; cursor:pointer;">
-                  <input type="checkbox" name="simulated_vectors[]" value="QR_QUISHING" style="margin-top:0.15rem; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="QR_QUISHING" checked style="margin-top:0.15rem; cursor:pointer;">
                   <span><strong>📱 Quishing (QR Malicioso)</strong><br><small style="color:#64748b;">Escaner físico o en correos</small></span>
                 </label>
               </div>
@@ -3758,6 +3794,23 @@ $scans_list = $db->query("
           </form>
         </div>
       </div>
+
+      <script>
+      function syncRedTeamPlanVectors(plan) {
+        const vectorMap = {
+          'STARTER': ['BEC', 'SPEAR_PHISHING_SII'],
+          'PROFESSIONAL': ['BEC', 'INVOICE_FRAUD', 'PASSKEY_BYPASS', 'QR_QUISHING'],
+          'ENTERPRISE': ['BEC', 'INVOICE_FRAUD', 'VISHING', 'SPEAR_PHISHING_SII', 'PASSKEY_BYPASS', 'QR_QUISHING']
+        };
+
+        const targetVectors = vectorMap[plan] || vectorMap['PROFESSIONAL'];
+        const checkboxes = document.querySelectorAll('#modalNewRtCampaign input[name="simulated_vectors[]"]');
+        
+        checkboxes.forEach(cb => {
+          cb.checked = targetVectors.includes(cb.value);
+        });
+      }
+      </script>
 
 
     <?php elseif ($tab === 'marketing'): ?>
@@ -5508,7 +5561,7 @@ $scans_list = $db->query("
             </div>
 
             <button type="submit" style="background:#003366; color:#ffffff; border:none; padding:0.75rem 1.5rem; border-radius:6px; font-weight:700; font-size:0.9rem; cursor:pointer;">
-              ð¾ Guardar Configuración SMTP
+              💾 Guardar Configuración SMTP
             </button>
           </form>
         </div>
@@ -5527,7 +5580,7 @@ $scans_list = $db->query("
               <input type="email" name="test_email" value="rdiazg@keystoneadvisors.cl" required style="width:100%; padding:0.65rem 0.85rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
             </div>
             <button type="submit" style="background:#10b981; color:#ffffff; border:none; padding:0.68rem 1.4rem; border-radius:6px; font-weight:700; font-size:0.9rem; cursor:pointer; white-space:nowrap;">
-              ð Enviar Prueba Ahora
+              🚀 Enviar Prueba Ahora
             </button>
           </form>
         </div>
@@ -5822,7 +5875,7 @@ $scans_list = $db->query("
 
                 const data = await res.json();
                 if (data.success) {
-                  btn.innerHTML = `<span>✓ Enviada</span> ð¡️`;
+                  btn.innerHTML = `<span>✓ Enviada</span> 🛡️`;
                   btn.style.background = '#047857';
                   btn.style.opacity = '1';
                   btn.disabled = false;
@@ -5963,7 +6016,7 @@ $scans_list = $db->query("
 
         async function openWhatsAppModal(instanceName, companyName) {
           const modal = document.getElementById('modalWhatsAppQr');
-          document.getElementById('qrModalTitle').textContent = 'ð² WhatsApp: ' + companyName;
+          document.getElementById('qrModalTitle').textContent = '📲 WhatsApp: ' + companyName;
           document.getElementById('qrLoading').style.display = 'block';
           document.getElementById('qrContainer').style.display = 'none';
           document.getElementById('qrStatusBadge').textContent = '';
@@ -6050,7 +6103,7 @@ $scans_list = $db->query("
                 dot.style.background = '#10b981';
                 dot.style.boxShadow = '0 0 6px #10b981';
                 if (label) {
-                  label.innerHTML = '<span style="color:#059669; font-weight:700;">ð¢ Conectado</span>';
+                  label.innerHTML = '<span style="color:#059669; font-weight:700;">🟢 Conectado</span>';
                 }
               } else {
                 dot.style.background = '#f59e0b';
@@ -6148,7 +6201,7 @@ $scans_list = $db->query("
             const data = await res.json();
 
             btn.disabled = false;
-            btn.innerHTML = 'ð¥ Sincronizar desde contacto@keystoneadvisors.cl';
+            btn.innerHTML = '📥 Sincronizar desde contacto@keystoneadvisors.cl';
 
             const resultBox = document.getElementById('becForensicResult');
             const resultTitle = document.getElementById('becForensicTitle');
@@ -6156,7 +6209,7 @@ $scans_list = $db->query("
 
             if (data.success && data.found_count > 0) {
               const item = data.processed[0];
-              resultTitle.innerHTML = `<span style="color:#dc2626;">ð¨ CORREO ENCONTRADO EN CASILLA & ANALIZADO:</span>`;
+              resultTitle.innerHTML = `<span style="color:#dc2626;">🚨 CORREO ENCONTRADO EN CASILLA & ANALIZADO:</span>`;
               resultBody.innerHTML = `<strong>Emisor Detectado:</strong> ${item.sender}<br>
                                       <strong>IP Origen:</strong> ${item.ip} (SPF: <strong>${item.spf}</strong>)<br>
                                       <strong>Dosier PDF Emitido:</strong> <span style="color:#059669; font-weight:bold;">Listo para descarga y despacho</span>`;
@@ -6169,7 +6222,7 @@ $scans_list = $db->query("
             }
           } catch (e) {
             btn.disabled = false;
-            btn.innerHTML = 'ð¥ Sincronizar desde contacto@keystoneadvisors.cl';
+            btn.innerHTML = '📥 Sincronizar desde contacto@keystoneadvisors.cl';
             alert('Error al sincronizar: ' + e.message);
           }
         }
@@ -6198,7 +6251,7 @@ $scans_list = $db->query("
 
             if (data.success) {
               const an = data.analysis;
-              resultTitle.innerHTML = `<span style="color:#dc2626;">ð¨ AUDITORÍA FORENSE COMPLETADA:</span>`;
+              resultTitle.innerHTML = `<span style="color:#dc2626;">🚨 AUDITORÍA FORENSE COMPLETADA:</span>`;
               resultBody.innerHTML = `<strong>Remitente Visible:</strong> ${an.sender_from}<br>
                                       <strong>Reply-To Oculto:</strong> <span style="color:#dc2626; font-weight:bold;">${an.reply_to || 'N/A'}</span><br>
                                       <strong>IP Origen:</strong> ${an.origin_ip} (SPF: ${an.spf_status} | DKIM: ${an.dkim_status} | DMARC: ${an.dmarc_status})<br>
