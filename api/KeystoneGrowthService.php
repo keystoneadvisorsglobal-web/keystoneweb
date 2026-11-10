@@ -806,20 +806,34 @@ class KeystoneGrowthService {
                 'message' => 'API Key de Google AI Studio no configurada.'
             ];
         } else {
-            $ch = curl_init('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . $gKey);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'User-Agent: KeystoneGrowthEngine/1.0']);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['contents' => [['parts' => [['text' => 'ping']]]]]));
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
-            $res = curl_exec($ch);
-            $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-            if ($http === 200) {
+            // Probar modelos de alta disponibilidad en orden de versiones activas
+            $probeModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-flash-latest'];
+            $http = 0;
+            $res = null;
+            $successModel = null;
+
+            foreach ($probeModels as $m) {
+                $ch = curl_init('https://generativelanguage.googleapis.com/v1beta/models/' . $m . ':generateContent?key=' . $gKey);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'User-Agent: KeystoneGrowthEngine/1.0']);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['contents' => [['parts' => [['text' => 'ping']]]]]));
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+                $res = curl_exec($ch);
+                $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                if ($http === 200) {
+                    $successModel = $m;
+                    break;
+                }
+            }
+
+            if ($http === 200 && $successModel) {
                 $results['google_ai'] = [
                     'status' => 'ok',
                     'status_es' => 'ACTIVO',
-                    'message' => 'Conectado exitosamente a Gemini 2.5 Flash / Flash Image.'
+                    'message' => 'Conectado exitosamente a ' . $successModel . ' (Proyecto Marketing Keystone).'
                 ];
             } else {
                 $j = json_decode($res, true);
@@ -828,16 +842,20 @@ class KeystoneGrowthService {
                 $statusEs = 'ATENCIÓN';
                 
                 // Traducción y humanización clara al español
-                if (strpos($rawMsg, 'prepayment credits are depleted') !== false || strpos($rawMsg, 'RESOURCE_EXHAUSTED') !== false || $http === 402) {
-                    $msgEs = 'Los créditos de prepago en su cuenta de Google AI Studio están agotados. Ingrese a ai.studio/projects para activar la facturación o recargar saldo.';
+                if (strpos($rawMsg, 'prepayment credits are depleted') !== false || $http === 402) {
+                    $msgEs = 'Los créditos de prepago en Google AI Studio están agotados. Requiere activar la facturación en ai.studio/projects.';
                 } elseif (strpos($rawMsg, 'API key not valid') !== false || $http === 400 || $http === 403) {
-                    $msgEs = 'La clave API de Google ingresada no es válida o ha sido revocada. Verifíquela en su panel de Google AI Studio.';
+                    $msgEs = 'La clave API de Google ingresada no es válida o fue revocada. Verifíquela en ai.studio.';
                     $statusType = 'error';
                     $statusEs = 'ERROR';
+                } elseif (strpos($rawMsg, 'high demand') !== false || $http === 503) {
+                    $msgEs = 'Clave API válida y conectada. Servidores de Google con alta demanda temporal (503). Conmutando temporalmente a Groq.';
+                    $statusType = 'warning';
+                    $statusEs = 'ALTA DEMANDA';
                 } elseif ($http === 429) {
-                    $msgEs = 'Límite de solicitudes por minuto alcanzado temporalmente. El servicio conmutará a Groq / Cloudflare.';
+                    $msgEs = 'Límite de solicitudes por minuto alcanzado temporalmente. El servicio conmuta automáticamente a Groq / Cloudflare.';
                 } else {
-                    $msgEs = 'Error de conexión con Google (HTTP ' . $http . '): ' . $rawMsg;
+                    $msgEs = 'Diagnóstico Google (HTTP ' . $http . '): ' . $rawMsg;
                 }
 
                 $results['google_ai'] = [
