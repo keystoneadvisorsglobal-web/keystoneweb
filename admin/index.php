@@ -1090,8 +1090,103 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
-// Procesar Login con Rate Limiting (Máx 5 fallos en 15 min)
+// Procesar Login con Rate Limiting (Máx 5 fallos en 15 min) y Doble Factor (2FA WhatsApp) - SOL-0191
 $login_error = null;
+$login_info = null;
+
+// Acción: Cancelar 2FA y volver al login básico
+if (isset($_GET['cancel_2fa'])) {
+    unset($_SESSION['2fa_pending_user'], $_SESSION['2fa_pending_id'], $_SESSION['2fa_pending_name'], $_SESSION['2fa_pending_role'], $_SESSION['2fa_phone']);
+    header("Location: index.php");
+    exit;
+}
+
+// Acción: Reenviar código 2FA
+if (isset($_GET['resend_2fa']) && isset($_SESSION['2fa_pending_user'])) {
+    $pUser = $_SESSION['2fa_pending_user'];
+    $stmt = $db->prepare("SELECT id, username, phone_whatsapp, full_name FROM admin_users WHERE username = ?");
+    $stmt->execute([$pUser]);
+    $uData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($uData && !empty($uData['phone_whatsapp'])) {
+        $otp = str_pad((string)random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+        $otpHash = password_hash($otp, PASSWORD_BCRYPT);
+        
+        $upd = $db->prepare("UPDATE admin_users SET otp_code = ?, otp_expires_at = datetime('now', '+5 minutes') WHERE id = ?");
+        $upd->execute([$otpHash, $uData['id']]);
+
+        require_once __DIR__ . '/../api/DeepShieldWhatsAppService.php';
+        $wa = new DeepShieldWhatsAppService();
+        $msg = "🛡️ *Keystone Security (2FA)*\n\nTu nuevo código de verificación es: *{$otp}*\n\nExpira en 5 minutos. No compartas este código con nadie.";
+        $wa->sendRawMessage('keystone-general', $uData['phone_whatsapp'], $msg);
+        $login_info = "Se ha reenviado un nuevo código a tu WhatsApp.";
+    }
+}
+
+// Verificación del código 2FA
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_2fa') {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    $otpEntered = trim($_POST['otp_code'] ?? '');
+    $pendingUser = $_SESSION['2fa_pending_user'] ?? '';
+
+    if (empty($pendingUser) || empty($otpEntered)) {
+        $login_error = "Sesión de verificación expirada. Por favor inicie sesión nuevamente.";
+        unset($_SESSION['2fa_pending_user'], $_SESSION['2fa_pending_id'], $_SESSION['2fa_pending_name'], $_SESSION['2fa_pending_role'], $_SESSION['2fa_phone']);
+    } else {
+        $stmt = $db->prepare("SELECT id, username, otp_code, otp_expires_at, role, full_name FROM admin_users WHERE username = ?");
+        $stmt->execute([$pendingUser]);
+        $uData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$uData || empty($uData['otp_code'])) {
+            $login_error = "Código de verificación no encontrado o expirado.";
+        } else {
+            // Verificar expiración
+            $stmtExp = $db->prepare("SELECT datetime('now') > ?");
+            $stmtExp->execute([$uData['otp_expires_at']]);
+            $isExpired = (int)$stmtExp->fetchColumn();
+
+            if ($isExpired === 1) {
+                $login_error = "El código de 6 dígitos ha expirado (validez de 5 min). Solicita uno nuevo.";
+            } elseif (password_verify($otpEntered, $uData['otp_code'])) {
+                // 2FA Exitoso: Conceder sesión administrativa completa
+                $user_role = $uData['role'];
+                if ($user_role === 'admin') $user_role = 'superadmin';
+
+                $_SESSION['admin_logged'] = true;
+                $_SESSION['admin_user'] = $uData['username'];
+                $_SESSION['admin_name'] = !empty($uData['full_name']) ? $uData['full_name'] : $uData['username'];
+                $_SESSION['admin_role'] = $user_role;
+                $_SESSION['2fa_verified'] = true;
+                
+                // Limpiar variables de paso
+                unset($_SESSION['2fa_pending_user'], $_SESSION['2fa_pending_id'], $_SESSION['2fa_pending_name'], $_SESSION['2fa_pending_role'], $_SESSION['2fa_phone']);
+                session_regenerate_id(true);
+
+                // Actualizar último login y limpiar OTP en base de datos
+                $update = $db->prepare("UPDATE admin_users SET last_login = CURRENT_TIMESTAMP, otp_code = NULL, otp_expires_at = NULL WHERE id = ?");
+                $update->execute([$uData['id']]);
+
+                // Limpiar intentos fallidos
+                $del = $db->prepare("DELETE FROM login_attempts WHERE ip_address = ?");
+                $del->execute([$ip]);
+
+                // Redirección inteligente al tab permitido por defecto según rol
+                if ($user_role === 'secops') {
+                    header("Location: index.php?tab=treasury");
+                } elseif ($user_role === 'comercial') {
+                    header("Location: index.php?tab=leads");
+                } else {
+                    header("Location: index.php?tab=dashboard");
+                }
+                exit;
+            } else {
+                $login_error = "Código de 6 dígitos incorrecto. Verifica el mensaje en tu WhatsApp.";
+            }
+        }
+    }
+}
+
+// Paso 1: Verificación de Usuario y Contraseña
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'login') {
     $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
     
@@ -1106,39 +1201,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
 
-        $stmt = $db->prepare("SELECT id, username, password_hash, role, full_name, is_active FROM admin_users WHERE username = ?");
+        $stmt = $db->prepare("SELECT id, username, password_hash, role, full_name, is_active, phone_whatsapp FROM admin_users WHERE username = ?");
         $stmt->execute([$username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user && (int)($user['is_active'] ?? 1) === 0) {
             $login_error = "Su cuenta se encuentra inactiva. Contacte al Administrador del Sistema.";
         } elseif ($user && password_verify($password, $user['password_hash'])) {
-            // Normalizar rol si viniese con valor legado 'admin' -> 'superadmin'
+            // Normalizar rol
             $user_role = $user['role'];
             if ($user_role === 'admin') $user_role = 'superadmin';
 
-            // Login exitoso
-            $_SESSION['admin_logged'] = true;
-            $_SESSION['admin_user'] = $user['username'];
-            $_SESSION['admin_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
-            $_SESSION['admin_role'] = $user_role;
-            session_regenerate_id(true);
+            $userPhone = !empty($user['phone_whatsapp']) ? trim($user['phone_whatsapp']) : '56930640431';
 
-            $update = $db->prepare("UPDATE admin_users SET last_login = CURRENT_TIMESTAMP WHERE id = ?");
-            $update->execute([$user['id']]);
+            // Generar código OTP de 6 dígitos
+            $otp = str_pad((string)random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+            $otpHash = password_hash($otp, PASSWORD_BCRYPT);
 
-            // Limpiar intentos fallidos
-            $del = $db->prepare("DELETE FROM login_attempts WHERE ip_address = ?");
-            $del->execute([$ip]);
+            // Guardar en base de datos con expiración de 5 minutos
+            $upd = $db->prepare("UPDATE admin_users SET otp_code = ?, otp_expires_at = datetime('now', '+5 minutes') WHERE id = ?");
+            $upd->execute([$otpHash, $user['id']]);
 
-            // Redirección inteligente al tab permitido por defecto según rol
-            if ($user_role === 'secops') {
-                header("Location: index.php?tab=treasury");
-            } elseif ($user_role === 'comercial') {
-                header("Location: index.php?tab=leads");
-            } else {
-                header("Location: index.php?tab=dashboard");
-            }
+            // Despachar código OTP por WhatsApp oficial
+            require_once __DIR__ . '/../api/DeepShieldWhatsAppService.php';
+            $wa = new DeepShieldWhatsAppService();
+            $waMsg = "🛡️ *Keystone Security (2FA)*\n\nHola " . (!empty($user['full_name']) ? $user['full_name'] : $user['username']) . ",\nTu código de verificación para ingresar a la Consola Administrativa es:\n\n👉 *{$otp}*\n\nEste código es válido por 5 minutos. Si no intentaste ingresar, revisa la seguridad de tu clave.";
+            $wa->sendRawMessage('keystone-general', $userPhone, $waMsg);
+
+            // Iniciar estado pendiente de 2FA en sesión
+            $_SESSION['2fa_pending_user'] = $user['username'];
+            $_SESSION['2fa_pending_id'] = $user['id'];
+            $_SESSION['2fa_pending_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
+            $_SESSION['2fa_pending_role'] = $user_role;
+            $_SESSION['2fa_phone'] = substr($userPhone, 0, 3) . '***' . substr($userPhone, -4);
+
+            header("Location: index.php");
             exit;
         } else {
             // Registrar intento fallido
@@ -1149,33 +1246,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Vista de Login si no está autenticado
+// Vista de Login / 2FA si no está completamente autenticado
 if (!isset($_SESSION['admin_logged'])) {
+    $is2faStep = isset($_SESSION['2fa_pending_user']);
     ?>
     <!DOCTYPE html>
     <html lang="es">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Keystone Advisors | Consola de Gestión & Telemetría</title>
+      <title>Keystone Advisors | <?php echo $is2faStep ? 'Doble Factor (2FA)' : 'Consola de Gestión'; ?></title>
       <link rel="icon" type="image/png" href="../assets/images/favicon.png">
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
-        body { background: #001730; display: flex; align-items: center; justify-content: center; min-height: 100vh; color: #333333; }
-        .login-card { background: #ffffff; border-radius: 14px; width: 100%; max-width: 420px; padding: 2.5rem; box-shadow: 0 20px 45px rgba(0,0,0,0.4); }
-        .logo-box { text-align: center; margin-bottom: 1.75rem; }
+        body { background: #001730; display: flex; align-items: center; justify-content: center; min-height: 100vh; color: #333333; padding: 1.5rem; }
+        .login-card { background: #ffffff; border-radius: 14px; width: 100%; max-width: 440px; padding: 2.5rem; box-shadow: 0 20px 45px rgba(0,0,0,0.4); text-align: center; }
+        .logo-box { text-align: center; margin-bottom: 1.5rem; }
         .logo-box img { max-width: 220px; height: auto; }
-        .badge { display: inline-block; background: #e0f2fe; color: #0284c7; font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 99px; text-transform: uppercase; margin-bottom: 0.75rem; }
-        h2 { font-size: 1.35rem; color: #003366; font-weight: 800; margin-bottom: 0.5rem; text-align: center; }
-        p.sub { font-size: 0.88rem; color: #64748b; text-align: center; margin-bottom: 1.75rem; line-height: 1.4; }
-        .form-group { margin-bottom: 1.25rem; }
+        .badge { display: inline-block; background: #e0f2fe; color: #0284c7; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 99px; text-transform: uppercase; margin-bottom: 0.75rem; }
+        .badge-2fa { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+        h2 { font-size: 1.35rem; color: #003366; font-weight: 800; margin-bottom: 0.5rem; }
+        p.sub { font-size: 0.88rem; color: #64748b; margin-bottom: 1.75rem; line-height: 1.4; }
+        .form-group { margin-bottom: 1.25rem; text-align: left; }
         label { display: block; font-size: 0.85rem; font-weight: 700; color: #003366; margin-bottom: 0.4rem; }
         input[type="text"], input[type="password"] { width: 100%; padding: 0.75rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; }
         input:focus { outline: none; border-color: #003366; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
+        .otp-input { text-align: center; font-size: 1.8rem !important; letter-spacing: 0.5rem; font-weight: 800; color: #003366; background: #f8fafc; }
         .btn-login { width: 100%; padding: 0.85rem; background: linear-gradient(135deg, #003366 0%, #006699 100%); color: #ffffff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: 0.2s ease; }
         .btn-login:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,51,102,0.3); }
-        .alert { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.88rem; margin-bottom: 1.25rem; }
+        .alert { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.88rem; margin-bottom: 1.25rem; text-align: left; }
+        .alert-info { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.88rem; margin-bottom: 1.25rem; text-align: left; }
         .footer-note { text-align: center; margin-top: 1.5rem; font-size: 0.75rem; color: #94a3b8; }
+        .actions-2fa { display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem; font-size: 0.82rem; }
+        .actions-2fa a { color: #0284c7; text-decoration: none; font-weight: 700; }
+        .actions-2fa a:hover { text-decoration: underline; }
       </style>
     </head>
     <body>
@@ -1183,27 +1287,64 @@ if (!isset($_SESSION['admin_logged'])) {
         <div class="logo-box">
           <img src="../assets/images/logo.png" alt="Keystone Advisors">
         </div>
-        <div style="text-align: center;"><span class="badge">Acceso Protegido</span></div>
-        <h2>Consola de Gestión B2B</h2>
-        <p class="sub">Telemetría de Navegación, Embudo de Caída & Administración de Leads</p>
 
-        <?php if ($login_error): ?>
-          <div class="alert"><?php echo htmlspecialchars($login_error); ?></div>
+        <?php if ($is2faStep): ?>
+          <!-- PASO 2: DESAFÍO 2FA WHATSAPP -->
+          <div><span class="badge badge-2fa">🛡️ Doble Factor Activo (2FA)</span></div>
+          <h2>Verificación de Identidad</h2>
+          <p class="sub">
+            Hemos enviado un código de 6 dígitos a tu WhatsApp registrado <strong>(<?php echo htmlspecialchars($_SESSION['2fa_phone'] ?? ''); ?>)</strong>.
+          </p>
+
+          <?php if ($login_error): ?>
+            <div class="alert"><?php echo htmlspecialchars($login_error); ?></div>
+          <?php endif; ?>
+
+          <?php if ($login_info): ?>
+            <div class="alert-info"><?php echo htmlspecialchars($login_info); ?></div>
+          <?php endif; ?>
+
+          <form method="POST" action="index.php">
+            <input type="hidden" name="action" value="verify_2fa">
+            <div class="form-group" style="text-align:center;">
+              <label for="otp_code" style="text-align:center; margin-bottom:0.75rem;">Ingrese el Código de 6 Dígitos:</label>
+              <input type="text" id="otp_code" name="otp_code" class="otp-input" maxlength="6" pattern="[0-9]{6}" required autofocus autocomplete="one-time-code" placeholder="••••••">
+            </div>
+            <button type="submit" class="btn-login" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+              Verificar & Acceder ➜
+            </button>
+          </form>
+
+          <div class="actions-2fa">
+            <a href="index.php?resend_2fa=1">🔄 Reenviar Código</a>
+            <a href="index.php?cancel_2fa=1" style="color:#ef4444;">✕ Cancelar</a>
+          </div>
+
+        <?php else: ?>
+          <!-- PASO 1: USUARIO Y CONTRASEÑA -->
+          <div><span class="badge">Acceso Protegido</span></div>
+          <h2>Consola de Gestión B2B</h2>
+          <p class="sub">Telemetría de Navegación, Embudo de Caída & Administración de Leads</p>
+
+          <?php if ($login_error): ?>
+            <div class="alert"><?php echo htmlspecialchars($login_error); ?></div>
+          <?php endif; ?>
+
+          <form method="POST" action="index.php">
+            <input type="hidden" name="action" value="login">
+            <div class="form-group">
+              <label for="username">Usuario Administrador</label>
+              <input type="text" id="username" name="username" required autocomplete="off" autofocus>
+            </div>
+            <div class="form-group">
+              <label for="password">Contraseña de Seguridad</label>
+              <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn-login">Continuar a Verificación ➜</button>
+          </form>
         <?php endif; ?>
 
-        <form method="POST" action="index.php">
-          <input type="hidden" name="action" value="login">
-          <div class="form-group">
-            <label for="username">Usuario Administrador</label>
-            <input type="text" id="username" name="username" required autocomplete="off" autofocus>
-          </div>
-          <div class="form-group">
-            <label for="password">Contraseña de Seguridad</label>
-            <input type="password" id="password" name="password" required autocomplete="current-password">
-          </div>
-          <button type="submit" class="btn-login">Ingresar al Panel ➜</button>
-        </form>
-        <div class="footer-note">Ambiente Protegido por Blindaje Criptográfico & Anti-Fuerza Bruta</div>
+        <div class="footer-note">Ambiente Protegido por Blindaje Criptográfico & WhatsApp 2FA</div>
       </div>
     </body>
     </html>
