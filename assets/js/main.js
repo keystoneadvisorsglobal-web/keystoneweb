@@ -43,12 +43,16 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const pId = btn.dataset.productId;
       const pName = btn.dataset.productName;
-      const pPrice = btn.dataset.productPrice;
+      const currentCur = window.currentSiteCurrency || 'USD';
+      const pPrice = currentCur === 'UF' 
+        ? (btn.dataset.priceUfLabel || btn.dataset.productPrice) 
+        : (btn.dataset.priceUsdLabel || btn.dataset.productPrice);
 
       // Telemetría: Registro de intención de compra
       trackEvent('modal_open', {
         product_id: pId,
         product_name: pName,
+        currency: currentCur,
         section: 'planes_checkout'
       });
 
@@ -104,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     requestForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
+      const currentCur = window.currentSiteCurrency || 'USD';
       const payload = {
         type: formTypeInput.value,
         name: document.getElementById('clientName').value.trim(),
@@ -114,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         service: document.getElementById('clientService').value,
         product_id: productIdInput.value || null,
         product_name: productNameInput.value || null,
+        currency: currentCur,
         message: document.getElementById('clientMessage').value.trim()
       };
 
@@ -332,5 +338,77 @@ document.addEventListener('DOMContentLoaded', () => {
         btnRunScan.innerHTML = '<span>Reintentar Escaneo</span> ➜';
       }
     });
+  }
+
+  // ========================================================
+  // Conmutador Inteligente de Divisa (USD / Chile UF) - SOL-0190
+  // ========================================================
+  window.currentSiteCurrency = 'USD';
+
+  window.setSiteCurrency = function(cur) {
+    window.currentSiteCurrency = cur;
+    localStorage.setItem('ks_preferred_currency', cur);
+
+    // Actualizar botones del switch
+    document.querySelectorAll('.btn-cur-switch').forEach(btn => {
+      if (btn.dataset.cur === cur) {
+        btn.classList.add('active');
+        btn.style.background = '#003366';
+        btn.style.color = '#ffffff';
+        btn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.15)';
+      } else {
+        btn.classList.remove('active');
+        btn.style.background = 'transparent';
+        btn.style.color = '#475569';
+        btn.style.boxShadow = 'none';
+      }
+    });
+
+    // Actualizar símbolos y etiquetas de moneda
+    document.querySelectorAll('[data-price-cur]').forEach(el => {
+      el.textContent = cur;
+    });
+
+    // Actualizar montos numéricos
+    document.querySelectorAll('.price-amt').forEach(el => {
+      if (cur === 'UF') {
+        const valUf = el.dataset.priceUf;
+        if (valUf) el.textContent = valUf;
+      } else {
+        const valUsd = el.dataset.priceUsd;
+        if (valUsd) el.textContent = '$' + valUsd;
+      }
+    });
+
+    // Actualizar notas de subprecio / periodicidad
+    document.querySelectorAll('.price-sub').forEach(el => {
+      if (cur === 'UF') {
+        const subUf = el.dataset.subUf;
+        if (subUf) el.textContent = subUf;
+      } else {
+        const subUsd = el.dataset.subUsd;
+        if (subUsd) el.textContent = subUsd;
+      }
+    });
+  };
+
+  // Detección automática al cargar:
+  // 1. Preferencia guardada en localStorage
+  // 2. Si no hay, verificar huso horario de Chile (America/Santiago o Santiago) o navigator.language es-CL
+  const savedCur = localStorage.getItem('ks_preferred_currency');
+  if (savedCur) {
+    window.setSiteCurrency(savedCur);
+  } else {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      const isChile = tz.includes('Santiago') || tz === 'America/Santiago' || navigator.language === 'es-CL';
+      if (isChile) {
+        window.setSiteCurrency('UF');
+      } else {
+        window.setSiteCurrency('USD');
+      }
+    } catch (e) {
+      window.setSiteCurrency('USD');
+    }
   }
 });

@@ -477,6 +477,11 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
           </ul>
         </nav>
         <div class="nav-actions">
+          <!-- Switcher Moneda USD / Chile UF (SOL-0190) -->
+          <div class="currency-toggle" style="display:inline-flex; align-items:center; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:30px; padding:2px; font-size:0.78rem; font-weight:700;">
+            <button type="button" class="btn-cur-switch" data-cur="USD" onclick="setSiteCurrency('USD')" style="border:none; background:transparent; padding:0.35rem 0.65rem; border-radius:20px; cursor:pointer; color:#475569; transition:all 0.2s; font-weight:700;">🇺🇸 USD</button>
+            <button type="button" class="btn-cur-switch active" data-cur="UF" onclick="setSiteCurrency('UF')" style="border:none; background:#003366; color:#ffffff; padding:0.35rem 0.65rem; border-radius:20px; cursor:pointer; transition:all 0.2s; font-weight:700; box-shadow:0 2px 4px rgba(0,0,0,0.15);">🇨🇱 UF</button>
+          </div>
           <a href="#escaner" class="btn btn-primary" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); font-size:0.88rem;">🛡️ Escáner Gratuito</a>
         </div>
       </div>
@@ -709,11 +714,11 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
             
             <div class="keyhub-plan-price">
               <span class="plan-prefix">Desde</span>
-              <span class="plan-cur">USD</span>
-              <span class="plan-amt">$8</span>
+              <span class="plan-cur price-cur" data-price-cur>USD</span>
+              <span class="plan-amt price-amt" data-price-usd="8" data-price-uf="0,20">$8</span>
               <span class="plan-period">/ Usuario / Mes</span>
             </div>
-            <div class="keyhub-plan-sub">Base mínima: 20 usuarios (Desde USD $160 / mes) • Facturación flexible</div>
+            <div class="keyhub-plan-sub price-sub" data-sub-usd="Base mínima: 20 usuarios (Desde USD $160 / mes) • Facturación flexible" data-sub-uf="Base mínima: 20 usuarios (Desde UF 4 / mes) • Facturación flexible">Base mínima: 20 usuarios (Desde USD $160 / mes) • Facturación flexible</div>
 
             <ul class="keyhub-plan-features">
               <li>Módulo Kanban colaborativo con cronómetro e imputación de HH</li>
@@ -726,7 +731,9 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
             <button class="btn btn-secondary btn-buy-product" 
                     data-product-id="PROD-KEYHUB-PRO" 
                     data-product-name="KeyHub Professional (SaaS)" 
-                    data-product-price="Desde USD $8 / Usuario / Mes (Mín. 20 usuarios)">
+                    data-product-price="Desde USD $8 / Usuario / Mes (Mín. 20 usuarios)"
+                    data-price-usd-label="Desde USD $8 / Usuario / Mes (Mín. 20 usuarios)"
+                    data-price-uf-label="Desde UF 0,20 / Usuario / Mes (Mín. 20 usuarios / UF 4 mes)">
               Contratar KeyHub Pro
             </button>
           </div>
@@ -739,11 +746,11 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
             
             <div class="keyhub-plan-price">
               <span class="plan-prefix">Desde</span>
-              <span class="plan-cur">USD</span>
-              <span class="plan-amt">$14</span>
+              <span class="plan-cur price-cur" data-price-cur>USD</span>
+              <span class="plan-amt price-amt" data-price-usd="14" data-price-uf="0,35">$14</span>
               <span class="plan-period">/ Usuario / Mes</span>
             </div>
-            <div class="keyhub-plan-sub">Piso mínimo: 20 usuarios • Instancia dedicada o Cloud privada • SLA 99.9%</div>
+            <div class="keyhub-plan-sub price-sub" data-sub-usd="Piso mínimo: 20 usuarios (Desde USD $280 / mes) • Instancia dedicada o Cloud privada • SLA 99.9%" data-sub-uf="Piso mínimo: 20 usuarios (Desde UF 7 / mes) • Instancia dedicada o Cloud privada • SLA 99.9%">Piso mínimo: 20 usuarios • Instancia dedicada o Cloud privada • SLA 99.9%</div>
 
             <ul class="keyhub-plan-features">
               <li><strong>Todo lo incluido en KeyHub Professional</strong></li>
@@ -757,6 +764,8 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
                     data-product-id="PROD-KEYHUB-ENTERPRISE" 
                     data-product-name="KeyHub Enterprise Suite" 
                     data-product-price="Desde USD $14 / Usuario / Mes (Mín. 20 usuarios)"
+                    data-price-usd-label="Desde USD $14 / Usuario / Mes (Mín. 20 usuarios)"
+                    data-price-uf-label="Desde UF 0,35 / Usuario / Mes (Mín. 20 usuarios / UF 7 mes)"
                     style="margin-top:auto; background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);">
               Solicitar Propuesta Enterprise ➜
             </button>
@@ -770,11 +779,11 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
             
             <div class="keyhub-plan-price">
               <span class="plan-prefix">Desde</span>
-              <span class="plan-cur">USD</span>
-              <span class="plan-amt">$4</span>
+              <span class="plan-cur price-cur" data-price-cur>USD</span>
+              <span class="plan-amt price-amt" data-price-usd="4" data-price-uf="0,10">$4</span>
               <span class="plan-period">/ Usuario / Mes</span>
             </div>
-            <div class="keyhub-plan-sub">Adicional sobre Plan Professional o Enterprise • Sin límite de proyectos</div>
+            <div class="keyhub-plan-sub price-sub" data-sub-usd="Adicional sobre Plan Professional o Enterprise • Sin límite de proyectos" data-sub-uf="Adicional sobre Plan Professional o Enterprise (Desde UF 0,10 / usuario) • Sin límite de proyectos">Adicional sobre Plan Professional o Enterprise • Sin límite de proyectos</div>
 
             <ul class="keyhub-plan-features">
               <li><strong>Auditoría Matemática Anti-Falsificación:</strong> Detección de solapamiento y alteración de tiempos</li>
@@ -787,6 +796,8 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
                     data-product-id="PROD-KEYHUB-FORENSIC" 
                     data-product-name="Add-on Premium: Motor Pericial & Auditoría Forense de Horas" 
                     data-product-price="Desde USD $4 / Usuario / Mes (Add-on)"
+                    data-price-usd-label="Desde USD $4 / Usuario / Mes (Add-on)"
+                    data-price-uf-label="Desde UF 0,10 / Usuario / Mes (Add-on)"
                     style="margin-top:auto; border-color:#38bdf8; color:#38bdf8;">
               Agregar Motor Forense
             </button>
@@ -959,8 +970,8 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
           <p style="color:var(--text-muted); font-size:0.9rem;">Ideal para empresas en crecimiento que requieren activar su primer CRM con mejores prácticas comerciales.</p>
           <div class="product-price">
             <span class="prefix">Desde</span>
-            <span class="currency">USD</span>
-            <span class="amount">$2.490</span>
+            <span class="currency price-cur" data-price-cur>USD</span>
+            <span class="amount price-amt" data-price-usd="2.490" data-price-uf="60">$2.490</span>
             <span class="period">/ Pago único</span>
           </div>
           <ul class="product-features">
@@ -972,7 +983,9 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
           <button class="btn btn-secondary btn-buy-product" 
                   data-product-id="PROD-SF-STARTER" 
                   data-product-name="Salesforce Starter Suite" 
-                  data-product-price="Desde USD $2.490">
+                  data-product-price="Desde USD $2.490"
+                  data-price-usd-label="Desde USD $2.490"
+                  data-price-uf-label="Desde UF 60 (Pago único)">
             Contratar Paquete
           </button>
         </div>
@@ -985,8 +998,8 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
           <p style="color:var(--text-muted); font-size:0.9rem;">Habilite Service Cloud o Sales Cloud con automatizaciones y reportes directivos listos en 4 semanas.</p>
           <div class="product-price">
             <span class="prefix">Desde</span>
-            <span class="currency">USD</span>
-            <span class="amount">$8.000</span>
+            <span class="currency price-cur" data-price-cur>USD</span>
+            <span class="amount price-amt" data-price-usd="8.000" data-price-uf="190">$8.000</span>
             <span class="period">/ Pago único</span>
           </div>
           <ul class="product-features">
@@ -999,7 +1012,9 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
           <button class="btn btn-primary btn-buy-product" 
                   data-product-id="PROD-SF-QUICKSTARTER" 
                   data-product-name="Salesforce Quick Starter (4 Semanas)" 
-                  data-product-price="Desde USD $8.000">
+                  data-product-price="Desde USD $8.000"
+                  data-price-usd-label="Desde USD $8.000"
+                  data-price-uf-label="Desde UF 190 (Pago único)">
             Contratar Ahora ➜
           </button>
         </div>
@@ -1011,11 +1026,11 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
           <p style="color:var(--text-muted); font-size:0.9rem;">Soporte experto continuo multi-tecnología (Salesforce, Apex, LWC, Cloud, Integraciones) en horario de oficina.</p>
           <div class="product-price">
             <span class="prefix">Desde</span>
-            <span class="currency">USD</span>
-            <span class="amount">$2.750</span>
+            <span class="currency price-cur" data-price-cur>USD</span>
+            <span class="amount price-amt" data-price-usd="2.750" data-price-uf="68">$2.750</span>
             <span class="period">/ Mes</span>
           </div>
-          <div class="product-price-sub">Período mínimo de contratación: 3 meses</div>
+          <div class="product-price-sub price-sub" data-sub-usd="Período mínimo de contratación: 3 meses" data-sub-uf="Período mínimo de contratación: 3 meses (Desde UF 68 / mes)">Período mínimo de contratación: 3 meses</div>
           <ul class="product-features">
             <li><span class="item-label">Modalidad Mensual:</span> Compromiso mínimo por períodos de 3 meses</li>
             <li><span class="item-label">Horario de Oficina:</span> Lunes a Viernes de 09:00 a 18:00 hrs</li>
@@ -1028,7 +1043,9 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
           <button class="btn btn-secondary btn-buy-product" 
                   data-product-id="PROD-HOURS-FLEX" 
                   data-product-name="Bolsa Soporte IT Flex Mensual (Mín. 3 meses)" 
-                  data-product-price="Desde USD $2.750 / Mes">
+                  data-product-price="Desde USD $2.750 / Mes"
+                  data-price-usd-label="Desde USD $2.750 / Mes (Mín. 3 meses)"
+                  data-price-uf-label="Desde UF 68 / Mes (Mín. 3 meses)">
             Adquirir Plan Soporte
           </button>
         </div>
@@ -1041,11 +1058,11 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
           <p style="color:var(--text-muted); font-size:0.9rem;">Radiografía forense pasiva en 72 horas para CFOs, Gerentes TI y Comités de Auditoría. Cero fricción de instalación.</p>
           <div class="product-price">
             <span class="prefix">Desde</span>
-            <span class="currency">USD</span>
-            <span class="amount">$950</span>
+            <span class="currency price-cur" data-price-cur>USD</span>
+            <span class="amount price-amt" data-price-usd="950" data-price-uf="23">$950</span>
             <span class="period">/ Entrega 72 hrs</span>
           </div>
-          <div class="product-price-sub">Informe Ejecutivo de 3 Páginas + Sesión Consultiva</div>
+          <div class="product-price-sub price-sub" data-sub-usd="Informe Ejecutivo de 3 Páginas + Sesión Consultiva" data-sub-uf="Informe Ejecutivo de 3 Páginas + Sesión Consultiva (UF 23)">Informe Ejecutivo de 3 Páginas + Sesión Consultiva</div>
           <ul class="product-features">
             <li><span class="item-label">Auditoría DMARC / SPF:</span> Medición de vulnerabilidad a estafas BEC</li>
             <li><span class="item-label">Superficie de Exposición:</span> Detección de puertos y subdominios expuestos</li>
@@ -1057,6 +1074,8 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
                   data-product-id="PROD-CYBER-ASSESS" 
                   data-product-name="Executive Cyber Risk Assessment (72h)" 
                   data-product-price="Desde USD $950"
+                  data-price-usd-label="Desde USD $950"
+                  data-price-uf-label="Desde UF 23 (Entrega 72 hrs)"
                   style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
             Solicitar Assessment ➜
           </button>
@@ -1069,11 +1088,11 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
           <p style="color:var(--text-muted); font-size:0.9rem;">Custodia perimetral y validación fuera de banda (OOB) contra desvío de pagos y clonación de voz en tesorería.</p>
           <div class="product-price">
             <span class="prefix">Desde</span>
-            <span class="currency">USD</span>
-            <span class="amount">$490</span>
+            <span class="currency price-cur" data-price-cur>USD</span>
+            <span class="amount price-amt" data-price-usd="490" data-price-uf="12">$490</span>
             <span class="period">/ Mes</span>
           </div>
-          <div class="product-price-sub">3 planes según volumen de transferencias y directores</div>
+          <div class="product-price-sub price-sub" data-sub-usd="3 planes según volumen de transferencias y directores" data-sub-uf="3 planes desde UF 12 / mes según volumen">3 planes según volumen de transferencias y directores</div>
           <ul class="product-features">
             <li><span class="item-label">Validación OOB:</span> Aprobación biométrica en smartphones</li>
             <li><span class="item-label">Anti-Deepfake:</span> Desafíos criptográficos de control en vivo</li>
@@ -1163,10 +1182,10 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
             
             <div style="margin-bottom:1.25rem; padding-bottom:1.25rem; border-bottom:1px solid #1e3a5f;">
               <span style="font-size:0.85rem; color:#94a3b8;">Desde</span>
-              <span style="font-size:1.1rem; font-weight:700; color:#38bdf8;">USD</span>
-              <span style="font-size:2.2rem; font-weight:800; color:#ffffff;">$490</span>
+              <span class="price-cur" data-price-cur style="font-size:1.1rem; font-weight:700; color:#38bdf8;">USD</span>
+              <span class="price-amt" data-price-usd="490" data-price-uf="12" style="font-size:2.2rem; font-weight:800; color:#ffffff;">$490</span>
               <span style="font-size:0.85rem; color:#94a3b8;">/ Mes</span>
-              <div style="font-size:0.75rem; color:#64748b; margin-top:0.25rem;">Hasta 30 transferencias custodiadas / mes</div>
+              <div class="price-sub" data-sub-usd="Hasta 30 transferencias custodiadas / mes" data-sub-uf="Hasta 30 transferencias custodiadas / mes (Desde UF 12 / mes)" style="font-size:0.75rem; color:#64748b; margin-top:0.25rem;">Hasta 30 transferencias custodiadas / mes</div>
             </div>
 
             <ul style="list-style:none; padding:0; margin:0 0 1.75rem 0; font-size:0.85rem; color:#cbd5e1; display:flex; flex-direction:column; gap:0.65rem;">
@@ -1182,6 +1201,8 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
                     data-product-id="PROD-DEEPSHIELD-STARTER" 
                     data-product-name="DeepShield Starter" 
                     data-product-price="Desde USD $490 / Mes"
+                    data-price-usd-label="Desde USD $490 / Mes"
+                    data-price-uf-label="Desde UF 12 / Mes"
                     style="margin-top:auto; width:100%; justify-content:center; background:#1e293b; color:#ffffff; border-color:#334155;">
               Contratar Starter
             </button>
@@ -1196,10 +1217,10 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
             
             <div style="margin-bottom:1.25rem; padding-bottom:1.25rem; border-bottom:1px solid #1e3a5f;">
               <span style="font-size:0.85rem; color:#94a3b8;">Desde</span>
-              <span style="font-size:1.1rem; font-weight:700; color:#38bdf8;">USD</span>
-              <span style="font-size:2.2rem; font-weight:800; color:#ffffff;">$1.250</span>
+              <span class="price-cur" data-price-cur style="font-size:1.1rem; font-weight:700; color:#38bdf8;">USD</span>
+              <span class="price-amt" data-price-usd="1.250" data-price-uf="30" style="font-size:2.2rem; font-weight:800; color:#ffffff;">$1.250</span>
               <span style="font-size:0.85rem; color:#94a3b8;">/ Mes</span>
-              <div style="font-size:0.75rem; color:#38bdf8; margin-top:0.25rem; font-weight:700;">Hasta 150 transferencias custodiadas / mes</div>
+              <div class="price-sub" data-sub-usd="Hasta 150 transferencias custodiadas / mes" data-sub-uf="Hasta 150 transferencias custodiadas / mes (Desde UF 30 / mes)" style="font-size:0.75rem; color:#38bdf8; margin-top:0.25rem; font-weight:700;">Hasta 150 transferencias custodiadas / mes</div>
             </div>
 
             <ul style="list-style:none; padding:0; margin:0 0 1.75rem 0; font-size:0.85rem; color:#f1f5f9; display:flex; flex-direction:column; gap:0.65rem;">
@@ -1215,6 +1236,8 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
                     data-product-id="PROD-DEEPSHIELD-PRO" 
                     data-product-name="DeepShield Professional" 
                     data-product-price="Desde USD $1.250 / Mes"
+                    data-price-usd-label="Desde USD $1.250 / Mes"
+                    data-price-uf-label="Desde UF 30 / Mes"
                     style="margin-top:auto; width:100%; justify-content:center; background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%); font-weight:700;">
               Contratar Plan Professional ➜
             </button>
@@ -1228,10 +1251,10 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
             
             <div style="margin-bottom:1.25rem; padding-bottom:1.25rem; border-bottom:1px solid #1e3a5f;">
               <span style="font-size:0.85rem; color:#94a3b8;">Desde</span>
-              <span style="font-size:1.1rem; font-weight:700; color:#a855f7;">USD</span>
-              <span style="font-size:2.2rem; font-weight:800; color:#ffffff;">$2.800</span>
+              <span class="price-cur" data-price-cur style="font-size:1.1rem; font-weight:700; color:#a855f7;">USD</span>
+              <span class="price-amt" data-price-usd="2.800" data-price-uf="68" style="font-size:2.2rem; font-weight:800; color:#ffffff;">$2.800</span>
               <span style="font-size:0.85rem; color:#94a3b8;">/ Mes</span>
-              <div style="font-size:0.75rem; color:#64748b; margin-top:0.25rem;">Transferencias y pagos ilimitados</div>
+              <div class="price-sub" data-sub-usd="Transferencias y pagos ilimitados" data-sub-uf="Transferencias y pagos ilimitados (Desde UF 68 / mes)" style="font-size:0.75rem; color:#64748b; margin-top:0.25rem;">Transferencias y pagos ilimitados</div>
             </div>
 
             <ul style="list-style:none; padding:0; margin:0 0 1.75rem 0; font-size:0.85rem; color:#cbd5e1; display:flex; flex-direction:column; gap:0.65rem;">
@@ -1247,6 +1270,8 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
                     data-product-id="PROD-DEEPSHIELD-ENTERPRISE" 
                     data-product-name="DeepShield Enterprise" 
                     data-product-price="Desde USD $2.800 / Mes"
+                    data-price-usd-label="Desde USD $2.800 / Mes"
+                    data-price-uf-label="Desde UF 68 / Mes"
                     style="margin-top:auto; width:100%; justify-content:center; background:#1e293b; color:#ffffff; border-color:#a855f7;">
               Cotizar Plan Enterprise
             </button>
@@ -1446,9 +1471,10 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
           <select id="clientService" class="form-select">
             <option value="Executive Cyber Risk Assessment">Executive Cyber Risk Assessment (Diagnóstico 72 hrs)</option>
             <option value="Blindaje de Tesorería DeepShield">Blindaje Operativo de Tesorería (Anti-Fraude IA)</option>
-            <option value="KeyHub Professional SaaS">KeyHub Professional (USD $8 / Usuario / Mes)</option>
-            <option value="KeyHub Enterprise SaaS">KeyHub Enterprise (USD $14 / Usuario / Mes)</option>
+            <option value="KeyHub Professional SaaS">KeyHub Professional (SaaS)</option>
+            <option value="KeyHub Enterprise SaaS">KeyHub Enterprise (SaaS)</option>
             <option value="KeyHub Add-on Motor Forense">KeyHub Add-on: Motor Pericial & Auditoría Forense de Horas</option>
+            <option value="Salesforce Starter Suite">Salesforce Starter Suite (2 semanas)</option>
             <option value="Salesforce Quick Starter">Salesforce Quick Starter (4 semanas)</option>
             <option value="Salesforce Agentforce & IA">Salesforce Agentforce & Inteligencia Artificial</option>
             <option value="Bolsa Soporte IT Flex">Bolsa de Horas Soporte IT Flex</option>
@@ -1469,7 +1495,7 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
     </div>
   </div>
 
-  <script src="assets/js/main.js?v=20261107_02"></script>
+  <script src="assets/js/main.js?v=20261110_01"></script>
 
   <!-- Script Menú Móvil Hamburguesa -->
   <script>
