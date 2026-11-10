@@ -13,7 +13,7 @@ class KeystoneGrowthService {
     private static string $dbFile = __DIR__ . '/../data/marketing_keystone.sqlite';
 
     // Credenciales oficiales validadas (valores por defecto con sobreescritura dinámica en mkt_settings)
-    private static string $googleApiKeyDefault = 'AQ.Ab8RN6Kokak-uy_C3-zfgAEpApm5tNiG_4d-pDILVQ4oKuYllA';
+    private static string $googleApiKeyDefault = 'AQ.Ab8RN6JQojSg4BiXNWFgyP1pFN3SaaY7sZ61jnC1F95yGbtxkg';
     private static string $cfAccountIdDefault = 'cf9641882a84e35bbf80ae7681d7ee71';
     private static string $cfAiTokenDefault = 'cfut_X7T32a3GAFH9iSkdoVkFY4YOc1Vn84RqB178bS6Q3b09495d';
     private static string $groqApiKeyDefault = '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';
