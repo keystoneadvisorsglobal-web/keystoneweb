@@ -482,6 +482,38 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
             <button type="button" class="btn-cur-switch" data-cur="USD" onclick="setSiteCurrency('USD')" style="border:none; background:transparent; padding:0.35rem 0.65rem; border-radius:20px; cursor:pointer; color:#475569; transition:all 0.2s; font-weight:700;">🇺🇸 USD</button>
             <button type="button" class="btn-cur-switch active" data-cur="UF" onclick="setSiteCurrency('UF')" style="border:none; background:#003366; color:#ffffff; padding:0.35rem 0.65rem; border-radius:20px; cursor:pointer; transition:all 0.2s; font-weight:700; box-shadow:0 2px 4px rgba(0,0,0,0.15);">🇨🇱 UF</button>
           </div>
+
+          <!-- Dropdown Acceso Clientes (SOL-0200) -->
+          <div class="nav-portal-dropdown" style="position:relative; display:inline-block;">
+            <button type="button" id="btnPortalDropdown" class="btn" style="background:#f8fafc; color:#003366; border:1px solid #cbd5e1; font-size:0.85rem; padding:0.45rem 0.9rem; font-weight:700; display:flex; align-items:center; gap:0.4rem; cursor:pointer;" onclick="togglePortalDropdown(event)">
+              <span>🛡️ Portales</span> <span style="font-size:0.65rem;">▼</span>
+            </button>
+            <div id="portalDropdownMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.12); min-width:260px; padding:0.5rem; z-index:1100;">
+              <a href="/shield/portal.php" style="display:flex; align-items:flex-start; gap:0.6rem; padding:0.65rem 0.75rem; border-radius:6px; text-decoration:none; color:#1e293b; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <span style="font-size:1.2rem;">🏦</span>
+                <div>
+                  <div style="font-size:0.85rem; font-weight:700; color:#003366;">Portal DeepShield Treasury</div>
+                  <div style="font-size:0.75rem; color:#64748b;">Custodia OOB y órdenes de pago</div>
+                </div>
+              </a>
+              <a href="/shield/portal.php?tab=dmarc" style="display:flex; align-items:flex-start; gap:0.6rem; padding:0.65rem 0.75rem; border-radius:6px; text-decoration:none; color:#1e293b; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <span style="font-size:1.2rem;">📡</span>
+                <div>
+                  <div style="font-size:0.85rem; font-weight:700; color:#059669;">DMARC Watchdog & Anti-Spoofing</div>
+                  <div style="font-size:0.75rem; color:#64748b;">Dosieres mensuales y reportes PDI</div>
+                </div>
+              </a>
+              <div style="border-top:1px solid #e2e8f0; margin:0.35rem 0;"></div>
+              <a href="/trust/" style="display:flex; align-items:flex-start; gap:0.6rem; padding:0.65rem 0.75rem; border-radius:6px; text-decoration:none; color:#1e293b; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <span style="font-size:1.2rem;">🔒</span>
+                <div>
+                  <div style="font-size:0.85rem; font-weight:700; color:#0284c7;">Trust Center & Telemetría</div>
+                  <div style="font-size:0.75rem; color:#64748b;">Postura de seguridad en tiempo real</div>
+                </div>
+              </a>
+            </div>
+          </div>
+
           <a href="#escaner" class="btn btn-primary" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); font-size:0.88rem;">🛡️ Escáner Gratuito</a>
         </div>
       </div>
@@ -869,7 +901,10 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
             <div class="service-icon" style="background:#ecfdf5; color:#059669;">✉️</div>
             <h3 class="service-title">Protección de Marca & DMARC (p=reject)</h3>
             <p class="service-desc">Gobernanza integral de correos corporativos: alineación estricta de DMARC, SPF y DKIM para impedir que terceros emitan emails suplantando su dominio ante bancos o proveedores internacionales.</p>
-            <a href="#contacto" class="service-link btn-contact-open">Auditar dominio ➜</a>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem; flex-wrap:wrap; gap:0.5rem;">
+              <a href="#escaner" class="service-link" style="color:#059669; font-weight:700;">Auditar mi Dominio Gratis ➜</a>
+              <a href="/shield/portal.php?tab=dmarc" class="service-link" style="color:#0284c7; font-weight:700;">Portal DMARC ↗</a>
+            </div>
           </div>
 
         </div>
@@ -1108,6 +1143,34 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
             </a>
             <a href="#como-opera-deepshield" style="font-size:0.82rem; color:#0284c7; text-decoration:none; font-weight:700; text-align:center; padding:0.25rem;">
               ¿Cómo opera el protocolo OOB? ➜
+            </a>
+          </div>
+        </div>
+
+        <!-- Product 6: Red Teaming Asistido por IA -->
+        <div class="product-card" style="border: 1.5px solid #d97706; background: linear-gradient(180deg, #ffffff 0%, #fffbeb 100%);">
+          <div class="product-category" style="color:#d97706; font-weight:800;">Ingeniería Social & Red Teaming</div>
+          <h3 class="product-name">Red Teaming con IA</h3>
+          <p style="color:var(--text-muted); font-size:0.9rem;">Simulaciones contextuales con LLM, clonación de voz sintética (Vishing) y remediación humana ante la Ley N° 21.459.</p>
+          <div class="product-price">
+            <span class="prefix">Desde</span>
+            <span class="currency price-cur" data-price-cur>USD</span>
+            <span class="amount price-amt" data-price-usd="650" data-price-uf="16">$650</span>
+            <span class="period">/ Mes</span>
+          </div>
+          <div class="product-price-sub price-sub" data-sub-usd="Campaña táctica o programa anual continuo" data-sub-uf="Planes desde UF 16 / mes o UF 28 por campaña">Campaña táctica o programa anual continuo</div>
+          <ul class="product-features">
+            <li><span class="item-label">Señuelos con LLM:</span> Correos contextuales hiperpersonalizados</li>
+            <li><span class="item-label">Vishing Telefónico:</span> Pruebas éticas de voz sintética</li>
+            <li><span class="item-label">Simulador Online:</span> Prueba ciega inmediata en vivo</li>
+            <li><span class="item-label">Informe Forense:</span> Cumplimiento pericial Ley N° 21.459</li>
+          </ul>
+          <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1rem;">
+            <a href="#planes-redteaming" class="btn btn-primary" style="text-align:center; text-decoration:none; background: linear-gradient(135deg, #d97706 0%, #b45309 100%);">
+              Ver Planes Red Teaming ➜
+            </a>
+            <a href="#como-opera-redteaming" style="font-size:0.82rem; color:#d97706; text-decoration:none; font-weight:700; text-align:center; padding:0.25rem;">
+              ¿Cómo opera el Red Teaming? ➜
             </a>
           </div>
         </div>
@@ -1585,6 +1648,8 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
       <div class="footer-col">
         <h4>Plataformas & Seguridad</h4>
         <ul class="footer-links">
+          <li><a href="/shield/portal.php">Portal DeepShield Clientes</a></li>
+          <li><a href="/shield/portal.php?tab=dmarc">DMARC Watchdog & Anti-Spoofing</a></li>
           <li><a href="/trust/">Trust Center (TrustZero)</a></li>
           <li><a href="https://cursos.surgescapacitaciones.cl" target="_blank">Surges Academy</a></li>
           <li><a href="#contacto">Canal de Denuncias</a></li>
@@ -1989,6 +2054,22 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
         btn.innerText = 'Solicitar Plan de Red Teaming ➜';
       }
     }
+    // Control Dropdown de Portales de Clientes (SOL-0200)
+    function togglePortalDropdown(e) {
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('portalDropdownMenu');
+      if (menu) {
+        menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+      }
+    }
+
+    document.addEventListener('click', function(e) {
+      const dropdown = document.querySelector('.nav-portal-dropdown');
+      const menu = document.getElementById('portalDropdownMenu');
+      if (dropdown && menu && !dropdown.contains(e.target)) {
+        menu.style.display = 'none';
+      }
+    });
   </script>
 
 </body>
