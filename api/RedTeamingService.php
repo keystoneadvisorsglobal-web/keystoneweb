@@ -298,4 +298,177 @@ class RedTeamingService {
         $stmt = $this->db->prepare("UPDATE redteam_campaigns SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
         return $stmt->execute([$status, $campaignId]);
     }
+
+    public function getCampaign(int $campaignId): ?array {
+        $stmt = $this->db->prepare("SELECT * FROM redteam_campaigns WHERE id = ?");
+        $stmt->execute([$campaignId]);
+        $res = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $res ?: null;
+    }
+
+    public function getCampaignTargets(int $campaignId): array {
+        $stmt = $this->db->prepare("SELECT * FROM redteam_targets WHERE campaign_id = ? ORDER BY id ASC");
+        $stmt->execute([$campaignId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function importTargets(int $campaignId, string $csvText): int {
+        $lines = explode("\n", str_replace("\r", "", $csvText));
+        $imported = 0;
+        $insert = $this->db->prepare("INSERT INTO redteam_targets (campaign_id, full_name, email, role_title, department, unique_token, status) VALUES (?, ?, ?, ?, ?, ?, 'PENDING')");
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line) || stripos($line, 'email') !== false || stripos($line, 'correo') !== false) {
+                continue;
+            }
+            $parts = str_getcsv($line);
+            if (count($parts) >= 2) {
+                $name = trim($parts[0]);
+                $email = strtolower(trim($parts[1]));
+                $role = isset($parts[2]) ? trim($parts[2]) : '';
+                $dept = isset($parts[3]) ? trim($parts[3]) : 'General';
+                $token = bin2hex(random_bytes(16));
+
+                if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    try {
+                        $insert->execute([$campaignId, $name, $email, $role, $dept, $token]);
+                        $imported++;
+                    } catch (Exception $e) {
+                        // Ignorar duplicados
+                    }
+                }
+            }
+        }
+
+        // Actualizar contador en la campaña
+        $this->db->prepare("UPDATE redteam_campaigns SET target_users_count = (SELECT COUNT(*) FROM redteam_targets WHERE campaign_id = ?) WHERE id = ?")->execute([$campaignId, $campaignId]);
+        return $imported;
+    }
+
+    public function getCampaignMetrics(int $campaignId): array {
+        $targets = $this->getCampaignTargets($campaignId);
+        $total = count($targets);
+        if ($total === 0) {
+            return [
+                'total_targets' => 0,
+                'opened_count' => 0,
+                'open_rate' => 0,
+                'clicked_count' => 0,
+                'click_rate' => 0,
+                'compromised_count' => 0,
+                'compromised_rate' => 0,
+                'departments' => []
+            ];
+        }
+
+        $opened = 0;
+        $clicked = 0;
+        $compromised = 0;
+        $depts = [];
+
+        foreach ($targets as $t) {
+            $d = !empty($t['department']) ? $t['department'] : 'General';
+            if (!isset($depts[$d])) {
+                $depts[$d] = ['eval' => 0, 'clicks' => 0, 'comp' => 0, 'risk' => 'BAJO / SEGURO'];
+            }
+            $depts[$d]['eval']++;
+
+            if (in_array($t['status'], ['OPENED', 'CLICKED', 'COMPROMISED'])) {
+                $opened++;
+            }
+            if (in_array($t['status'], ['CLICKED', 'COMPROMISED'])) {
+                $clicked++;
+                $depts[$d]['clicks']++;
+            }
+            if ($t['status'] === 'COMPROMISED') {
+                $compromised++;
+                $depts[$d]['comp']++;
+            }
+        }
+
+        foreach ($depts as $d => &$val) {
+            $rate = $val['eval'] > 0 ? ($val['clicks'] / $val['eval']) * 100 : 0;
+            if ($rate >= 50) $val['risk'] = 'CRÍTICO (BEC)';
+            elseif ($rate >= 25) $val['risk'] = 'ALTO (Facturas)';
+            elseif ($rate > 0) $val['risk'] = 'MEDIO';
+            else $val['risk'] = 'BAJO / SEGURO';
+        }
+
+        $clickRate = round(($clicked / $total) * 100, 1);
+        $openRate = round(($opened / $total) * 100, 1);
+        $compRate = round(($compromised / $total) * 100, 1);
+
+        // Actualizar vulnerability_score en campaña
+        $this->db->prepare("UPDATE redteam_campaigns SET vulnerability_score = ? WHERE id = ?")->execute([$clickRate, $campaignId]);
+
+        return [
+            'total_targets' => $total,
+            'opened_count' => $opened,
+            'open_rate' => $openRate,
+            'clicked_count' => $clicked,
+            'click_rate' => $clickRate,
+            'compromised_count' => $compromised,
+            'compromised_rate' => $compRate,
+            'departments' => $depts
+        ];
+    }
+
+
+    public function generateTargetLure(array $target, array $campaign): array {
+        $name = $target['full_name'];
+        $email = $target['email'];
+        $role = !empty($target['role_title']) ? $target['role_title'] : 'Colaborador';
+        $dept = !empty($target['department']) ? $target['department'] : 'General';
+        $company = $campaign['company_name'];
+        $token = $target['unique_token'];
+        $link = "https://www.keystoneadvisors.cl/shield/rt.php?t={$token}";
+
+        // Selección del vector más idóneo según el departamento
+        if (stripos($dept, 'tesor') !== false || stripos($dept, 'finan') !== false || stripos($role, 'conta') !== false || stripos($role, 'pago') !== false) {
+            $vector = 'INVOICE_FRAUD';
+            $subject = "URGENTE: Modificación de Datos Bancarios y Factura Pendiente - Servicios TI Global";
+            $senderDisplay = "Facturación Proveedores <proveedores@keystoneadvisors.cl>";
+            $body = "Estimada {$name} ({$role}),\n\n"
+                  . "Junto con saludar, le informamos que debido a una reestructuración de nuestras operaciones financieras y cierre de año bancario, nuestra cuenta corriente en Banco de Chile ha quedado inhabilitada para recepción de transferencias.\n\n"
+                  . "A partir de hoy, todas las órdenes de compra y facturas pendientes de emisión hacia {$company} deben ser cursadas a nuestra nueva cuenta corriente corporativa.\n\n"
+                  . "Para revisar el anexo de cambio de cuenta firmado digitalmente y el estado de la factura pendiente, ingrese al siguiente enlace institucional:\n"
+                  . "👉 Ver Comprobante y Nuevos Datos Bancarios: {$link}\n\n"
+                  . "Agradecemos confirmar la recepción y actualización de este cambio en su sistema ERP a la brevedad para no suspender el servicio.\n\n"
+                  . "Atentamente,\n"
+                  . "Departamento de Cobranzas & Tesorería\n"
+                  . "Servicios de Tecnología e Integraciones SpA";
+        } elseif (stripos($dept, 'geren') !== false || stripos($role, 'geren') !== false || stripos($role, 'director') !== false || stripos($role, 'cfo') !== false || stripos($role, 'ceo') !== false) {
+            $vector = 'BEC_CEO_FRAUD';
+            $subject = "CONFIDENCIAL: Requerimiento Urgente del Directorio / M&A Operativo";
+            $senderDisplay = "Dirección Ejecutiva <presidencia@keystoneadvisors.cl>";
+            $body = "Estimado/a {$name},\n\n"
+                  . "Me encuentro en este momento en una reunión privada y confidencial de Directorio fuera de la oficina, por lo que no puedo atender llamadas telefónicas.\n\n"
+                  . "Estamos cerrando una operación estratégica urgente y reservada para {$company}. Necesito que revise de forma inmediata el memorándum adjunto en el enlace seguro y me confirme su visto bueno para proceder hoy antes del cierre bancario de las 14:00 hrs.\n\n"
+                  . "👉 Acceder al Memorándum Confidencial de Operaciones: {$link}\n\n"
+                  . "Por favor mantener estricta reserva de este asunto con el resto del equipo hasta que emitamos el comunicado oficial.\n\n"
+                  . "Saludos cordiales,\n"
+                  . "Dirección General & Presidencia\n"
+                  . "{$company}";
+        } else {
+            $vector = 'SPEAR_PHISHING_SII';
+            $subject = "NOTIFICACIÓN TRIBUTARIA: Inconsistencias F-29 Detectadas Periodo Reciente";
+            $senderDisplay = "Servicio de Impuestos Internos <notificaciones@keystoneadvisors.cl>";
+            $body = "Estimado/a {$name} ({$role}),\n\n"
+                  . "El Servicio de Impuestos Internos informa que mediante cruce de información electrónica con el registro de compras y ventas de {$company}, se han detectado observaciones e inconsistencias en la declaración mensual F-29.\n\n"
+                  . "Dispone de un plazo fatal de 48 horas hábiles para subsanar los antecedentes antes de que se proceda al bloqueo de timbraje o emisión de documentos tributarios electrónicos.\n\n"
+                  . "👉 Descargar Detalle de Observaciones y Citación Digital: {$link}\n\n"
+                  . "Subdirección de Fiscalización Tributaria\n"
+                  . "Servicio de Impuestos Internos - Chile";
+        }
+
+        return [
+            'vector' => $vector,
+            'subject' => $subject,
+            'sender_display' => $senderDisplay,
+            'body' => $body,
+            'link' => $link
+        ];
+    }
+
 }

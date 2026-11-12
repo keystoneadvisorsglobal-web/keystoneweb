@@ -911,6 +911,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
+// Acción: Actualizar Estado de Campaña Red Teaming
+// Acción: Actualizar Datos de Campaña (Edición)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_redteam_campaign' && isset($_SESSION['admin_logged'])) {
+    require_once __DIR__ . '/../api/RedTeamingService.php';
+    $campId = (int)($_POST['campaign_id'] ?? 0);
+    $companyName = trim($_POST['company_name'] ?? '');
+    $contactName = trim($_POST['contact_name'] ?? '');
+    $contactEmail = trim($_POST['contact_email'] ?? '');
+    $targetDomains = trim($_POST['target_domains'] ?? '');
+    $planType = trim($_POST['plan_type'] ?? 'STARTER');
+    $vectors = isset($_POST['simulated_vectors']) && is_array($_POST['simulated_vectors']) ? implode(',', $_POST['simulated_vectors']) : 'BEC';
+
+    $stmt = $db->prepare("UPDATE redteam_campaigns SET company_name = :cn, contact_name = :ctn, contact_email = :ce, target_domains = :td, plan_type = :pt, simulated_vectors = :vec, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+    $stmt->bindValue(':cn', $companyName, PDO::PARAM_STR);
+    $stmt->bindValue(':ctn', $contactName, PDO::PARAM_STR);
+    $stmt->bindValue(':ce', $contactEmail, PDO::PARAM_STR);
+    $stmt->bindValue(':td', $targetDomains, PDO::PARAM_STR);
+    $stmt->bindValue(':pt', $planType, PDO::PARAM_STR);
+    $stmt->bindValue(':vec', $vectors, PDO::PARAM_STR);
+    $stmt->bindValue(':id', $campId, PDO::PARAM_INT);
+    $stmt->execute();
+
+    header("Location: index.php?tab=redteaming&campaign_updated=1");
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_redteam_status' && isset($_SESSION['admin_logged'])) {
+    $campId = (int)($_POST['campaign_id'] ?? 0);
+    $newStatus = trim($_POST['status'] ?? 'PLANNING');
+    if ($campId > 0 && in_array($newStatus, ['PLANNING', 'ACTIVE', 'COMPLETED', 'CANCELLED'])) {
+        $stmt = $db->prepare("UPDATE redteam_campaigns SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+        $stmt->execute([$newStatus, $campId]);
+    }
+    header("Location: index.php?tab=redteaming&status_updated=1");
+    exit;
+}
+
+// Acción: Cargar / Importar Nómina Objetivo para Campaña
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'import_redteam_targets' && isset($_SESSION['admin_logged'])) {
+    require_once __DIR__ . '/../api/RedTeamingService.php';
+    $rtService = new RedTeamingService($db);
+    $campId = (int)($_POST['campaign_id'] ?? 0);
+    $csvData = trim($_POST['targets_csv'] ?? '');
+    $count = 0;
+    if ($campId > 0 && !empty($csvData)) {
+        $count = $rtService->importTargets($campId, $csvData);
+    }
+    header("Location: index.php?tab=redteaming&targets_imported={$count}&view_camp={$campId}");
+    exit;
+}
+
+// Acción: Descargar Dosier Pericial Ejecutivo Red Teaming (PDF)
+if (isset($_GET['action']) && $_GET['action'] === 'download_redteam_dossier' && isset($_SESSION['admin_logged'])) {
+    require_once __DIR__ . '/../api/RedTeamingService.php';
+    require_once __DIR__ . '/../api/RedTeamDossierPdfGenerator.php';
+    $rtService = new RedTeamingService($db);
+    $campId = (int)($_GET['campaign_id'] ?? 0);
+    $camp = $rtService->getCampaign($campId);
+
+    if ($camp) {
+        $targets = $rtService->getCampaignTargets($campId);
+        $metrics = $rtService->getCampaignMetrics($campId);
+        $pdfGen = new RedTeamDossierPdfGenerator($camp, $targets, $metrics);
+        $pdfBinary = $pdfGen->generate();
+        $filename = 'Dosier_RedTeaming_' . preg_replace('/[^A-Za-z0-9]/', '_', $camp['company_name']) . '_' . date('Ym') . '.pdf';
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . $filename . '"');
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+        echo $pdfBinary;
+        exit;
+    }
+    die('Campaña no encontrada.');
+}
+
 // Acción: Despacho Manual de Dosier DMARC en PDF al Cliente o Descarga
 if (isset($_GET['action']) && $_GET['action'] === 'download_dmarc_dossier' && isset($_SESSION['admin_logged'])) {
     require_once __DIR__ . '/../api/DmarcMonthlyDossierPdfGenerator.php';
@@ -1090,103 +1166,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
-// Procesar Login con Rate Limiting (Máx 5 fallos en 15 min) y Doble Factor (2FA WhatsApp) - SOL-0191
+// Procesar Login con Rate Limiting (Máx 5 fallos en 15 min)
 $login_error = null;
-$login_info = null;
-
-// Acción: Cancelar 2FA y volver al login básico
-if (isset($_GET['cancel_2fa'])) {
-    unset($_SESSION['2fa_pending_user'], $_SESSION['2fa_pending_id'], $_SESSION['2fa_pending_name'], $_SESSION['2fa_pending_role'], $_SESSION['2fa_phone']);
-    header("Location: index.php");
-    exit;
-}
-
-// Acción: Reenviar código 2FA
-if (isset($_GET['resend_2fa']) && isset($_SESSION['2fa_pending_user'])) {
-    $pUser = $_SESSION['2fa_pending_user'];
-    $stmt = $db->prepare("SELECT id, username, phone_whatsapp, full_name FROM admin_users WHERE username = ?");
-    $stmt->execute([$pUser]);
-    $uData = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($uData && !empty($uData['phone_whatsapp'])) {
-        $otp = str_pad((string)random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
-        $otpHash = password_hash($otp, PASSWORD_BCRYPT);
-        
-        $upd = $db->prepare("UPDATE admin_users SET otp_code = ?, otp_expires_at = datetime('now', '+5 minutes') WHERE id = ?");
-        $upd->execute([$otpHash, $uData['id']]);
-
-        require_once __DIR__ . '/../api/DeepShieldWhatsAppService.php';
-        $wa = new DeepShieldWhatsAppService();
-        $msg = "🛡️ *Keystone Security (2FA)*\n\nTu nuevo código de verificación es: *{$otp}*\n\nExpira en 5 minutos. No compartas este código con nadie.";
-        $wa->sendRawMessage('keystone-general', $uData['phone_whatsapp'], $msg);
-        $login_info = "Se ha reenviado un nuevo código a tu WhatsApp.";
-    }
-}
-
-// Verificación del código 2FA
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'verify_2fa') {
-    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-    $otpEntered = trim($_POST['otp_code'] ?? '');
-    $pendingUser = $_SESSION['2fa_pending_user'] ?? '';
-
-    if (empty($pendingUser) || empty($otpEntered)) {
-        $login_error = "Sesión de verificación expirada. Por favor inicie sesión nuevamente.";
-        unset($_SESSION['2fa_pending_user'], $_SESSION['2fa_pending_id'], $_SESSION['2fa_pending_name'], $_SESSION['2fa_pending_role'], $_SESSION['2fa_phone']);
-    } else {
-        $stmt = $db->prepare("SELECT id, username, otp_code, otp_expires_at, role, full_name FROM admin_users WHERE username = ?");
-        $stmt->execute([$pendingUser]);
-        $uData = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$uData || empty($uData['otp_code'])) {
-            $login_error = "Código de verificación no encontrado o expirado.";
-        } else {
-            // Verificar expiración
-            $stmtExp = $db->prepare("SELECT datetime('now') > ?");
-            $stmtExp->execute([$uData['otp_expires_at']]);
-            $isExpired = (int)$stmtExp->fetchColumn();
-
-            if ($isExpired === 1) {
-                $login_error = "El código de 6 dígitos ha expirado (validez de 5 min). Solicita uno nuevo.";
-            } elseif (password_verify($otpEntered, $uData['otp_code'])) {
-                // 2FA Exitoso: Conceder sesión administrativa completa
-                $user_role = $uData['role'];
-                if ($user_role === 'admin') $user_role = 'superadmin';
-
-                $_SESSION['admin_logged'] = true;
-                $_SESSION['admin_user'] = $uData['username'];
-                $_SESSION['admin_name'] = !empty($uData['full_name']) ? $uData['full_name'] : $uData['username'];
-                $_SESSION['admin_role'] = $user_role;
-                $_SESSION['2fa_verified'] = true;
-                
-                // Limpiar variables de paso
-                unset($_SESSION['2fa_pending_user'], $_SESSION['2fa_pending_id'], $_SESSION['2fa_pending_name'], $_SESSION['2fa_pending_role'], $_SESSION['2fa_phone']);
-                session_regenerate_id(true);
-
-                // Actualizar último login y limpiar OTP en base de datos
-                $update = $db->prepare("UPDATE admin_users SET last_login = CURRENT_TIMESTAMP, otp_code = NULL, otp_expires_at = NULL WHERE id = ?");
-                $update->execute([$uData['id']]);
-
-                // Limpiar intentos fallidos
-                $del = $db->prepare("DELETE FROM login_attempts WHERE ip_address = ?");
-                $del->execute([$ip]);
-
-                // Redirección inteligente al tab permitido por defecto según rol
-                if ($user_role === 'secops') {
-                    header("Location: index.php?tab=treasury");
-                } elseif ($user_role === 'comercial') {
-                    header("Location: index.php?tab=leads");
-                } else {
-                    header("Location: index.php?tab=dashboard");
-                }
-                exit;
-            } else {
-                $login_error = "Código de 6 dígitos incorrecto. Verifica el mensaje en tu WhatsApp.";
-            }
-        }
-    }
-}
-
-// Paso 1: Verificación de Usuario y Contraseña
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'login') {
     $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
     
@@ -1201,41 +1182,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
 
-        $stmt = $db->prepare("SELECT id, username, password_hash, role, full_name, is_active, phone_whatsapp FROM admin_users WHERE username = ?");
+        $stmt = $db->prepare("SELECT id, username, password_hash, role, full_name, is_active FROM admin_users WHERE username = ?");
         $stmt->execute([$username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user && (int)($user['is_active'] ?? 1) === 0) {
             $login_error = "Su cuenta se encuentra inactiva. Contacte al Administrador del Sistema.";
         } elseif ($user && password_verify($password, $user['password_hash'])) {
-            // Normalizar rol
+            // Normalizar rol si viniese con valor legado 'admin' -> 'superadmin'
             $user_role = $user['role'];
             if ($user_role === 'admin') $user_role = 'superadmin';
 
-            $userPhone = !empty($user['phone_whatsapp']) ? trim($user['phone_whatsapp']) : '56930640431';
+            // Login exitoso
+            $_SESSION['admin_logged'] = true;
+            $_SESSION['admin_user'] = $user['username'];
+            $_SESSION['admin_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
+            $_SESSION['admin_role'] = $user_role;
+            session_regenerate_id(true);
 
-            // Generar código OTP de 6 dígitos
-            $otp = str_pad((string)random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
-            $otpHash = password_hash($otp, PASSWORD_BCRYPT);
+            $update = $db->prepare("UPDATE admin_users SET last_login = CURRENT_TIMESTAMP WHERE id = ?");
+            $update->execute([$user['id']]);
 
-            // Guardar en base de datos con expiración de 5 minutos
-            $upd = $db->prepare("UPDATE admin_users SET otp_code = ?, otp_expires_at = datetime('now', '+5 minutes') WHERE id = ?");
-            $upd->execute([$otpHash, $user['id']]);
+            // Limpiar intentos fallidos
+            $del = $db->prepare("DELETE FROM login_attempts WHERE ip_address = ?");
+            $del->execute([$ip]);
 
-            // Despachar código OTP por WhatsApp oficial
-            require_once __DIR__ . '/../api/DeepShieldWhatsAppService.php';
-            $wa = new DeepShieldWhatsAppService();
-            $waMsg = "🛡️ *Keystone Security (2FA)*\n\nHola " . (!empty($user['full_name']) ? $user['full_name'] : $user['username']) . ",\nTu código de verificación para ingresar a la Consola Administrativa es:\n\n👉 *{$otp}*\n\nEste código es válido por 5 minutos. Si no intentaste ingresar, revisa la seguridad de tu clave.";
-            $wa->sendRawMessage('keystone-general', $userPhone, $waMsg);
-
-            // Iniciar estado pendiente de 2FA en sesión
-            $_SESSION['2fa_pending_user'] = $user['username'];
-            $_SESSION['2fa_pending_id'] = $user['id'];
-            $_SESSION['2fa_pending_name'] = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
-            $_SESSION['2fa_pending_role'] = $user_role;
-            $_SESSION['2fa_phone'] = substr($userPhone, 0, 3) . '***' . substr($userPhone, -4);
-
-            header("Location: index.php");
+            // Redirección inteligente al tab permitido por defecto según rol
+            if ($user_role === 'secops') {
+                header("Location: index.php?tab=treasury");
+            } elseif ($user_role === 'comercial') {
+                header("Location: index.php?tab=leads");
+            } else {
+                header("Location: index.php?tab=dashboard");
+            }
             exit;
         } else {
             // Registrar intento fallido
@@ -1246,40 +1225,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Vista de Login / 2FA si no está completamente autenticado
+// Vista de Login si no está autenticado
 if (!isset($_SESSION['admin_logged'])) {
-    $is2faStep = isset($_SESSION['2fa_pending_user']);
     ?>
     <!DOCTYPE html>
     <html lang="es">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Keystone Advisors | <?php echo $is2faStep ? 'Doble Factor (2FA)' : 'Consola de Gestión'; ?></title>
+      <title>Keystone Advisors | Consola de Gestión & Telemetría</title>
       <link rel="icon" type="image/png" href="../assets/images/favicon.png">
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
-        body { background: #001730; display: flex; align-items: center; justify-content: center; min-height: 100vh; color: #333333; padding: 1.5rem; }
-        .login-card { background: #ffffff; border-radius: 14px; width: 100%; max-width: 440px; padding: 2.5rem; box-shadow: 0 20px 45px rgba(0,0,0,0.4); text-align: center; }
-        .logo-box { text-align: center; margin-bottom: 1.5rem; }
+        body { background: #001730; display: flex; align-items: center; justify-content: center; min-height: 100vh; color: #333333; }
+        .login-card { background: #ffffff; border-radius: 14px; width: 100%; max-width: 420px; padding: 2.5rem; box-shadow: 0 20px 45px rgba(0,0,0,0.4); }
+        .logo-box { text-align: center; margin-bottom: 1.75rem; }
         .logo-box img { max-width: 220px; height: auto; }
-        .badge { display: inline-block; background: #e0f2fe; color: #0284c7; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 99px; text-transform: uppercase; margin-bottom: 0.75rem; }
-        .badge-2fa { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
-        h2 { font-size: 1.35rem; color: #003366; font-weight: 800; margin-bottom: 0.5rem; }
-        p.sub { font-size: 0.88rem; color: #64748b; margin-bottom: 1.75rem; line-height: 1.4; }
-        .form-group { margin-bottom: 1.25rem; text-align: left; }
+        .badge { display: inline-block; background: #e0f2fe; color: #0284c7; font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 99px; text-transform: uppercase; margin-bottom: 0.75rem; }
+        h2 { font-size: 1.35rem; color: #003366; font-weight: 800; margin-bottom: 0.5rem; text-align: center; }
+        p.sub { font-size: 0.88rem; color: #64748b; text-align: center; margin-bottom: 1.75rem; line-height: 1.4; }
+        .form-group { margin-bottom: 1.25rem; }
         label { display: block; font-size: 0.85rem; font-weight: 700; color: #003366; margin-bottom: 0.4rem; }
         input[type="text"], input[type="password"] { width: 100%; padding: 0.75rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; }
         input:focus { outline: none; border-color: #003366; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
-        .otp-input { text-align: center; font-size: 1.8rem !important; letter-spacing: 0.5rem; font-weight: 800; color: #003366; background: #f8fafc; }
         .btn-login { width: 100%; padding: 0.85rem; background: linear-gradient(135deg, #003366 0%, #006699 100%); color: #ffffff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: 0.2s ease; }
         .btn-login:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,51,102,0.3); }
-        .alert { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.88rem; margin-bottom: 1.25rem; text-align: left; }
-        .alert-info { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.88rem; margin-bottom: 1.25rem; text-align: left; }
+        .alert { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.88rem; margin-bottom: 1.25rem; }
         .footer-note { text-align: center; margin-top: 1.5rem; font-size: 0.75rem; color: #94a3b8; }
-        .actions-2fa { display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem; font-size: 0.82rem; }
-        .actions-2fa a { color: #0284c7; text-decoration: none; font-weight: 700; }
-        .actions-2fa a:hover { text-decoration: underline; }
       </style>
     </head>
     <body>
@@ -1287,64 +1259,27 @@ if (!isset($_SESSION['admin_logged'])) {
         <div class="logo-box">
           <img src="../assets/images/logo.png" alt="Keystone Advisors">
         </div>
+        <div style="text-align: center;"><span class="badge">Acceso Protegido</span></div>
+        <h2>Consola de Gestión B2B</h2>
+        <p class="sub">Telemetría de Navegación, Embudo de Caída & Administración de Leads</p>
 
-        <?php if ($is2faStep): ?>
-          <!-- PASO 2: DESAFÍO 2FA WHATSAPP -->
-          <div><span class="badge badge-2fa">🛡️ Doble Factor Activo (2FA)</span></div>
-          <h2>Verificación de Identidad</h2>
-          <p class="sub">
-            Hemos enviado un código de 6 dígitos a tu WhatsApp registrado <strong>(<?php echo htmlspecialchars($_SESSION['2fa_phone'] ?? ''); ?>)</strong>.
-          </p>
-
-          <?php if ($login_error): ?>
-            <div class="alert"><?php echo htmlspecialchars($login_error); ?></div>
-          <?php endif; ?>
-
-          <?php if ($login_info): ?>
-            <div class="alert-info"><?php echo htmlspecialchars($login_info); ?></div>
-          <?php endif; ?>
-
-          <form method="POST" action="index.php">
-            <input type="hidden" name="action" value="verify_2fa">
-            <div class="form-group" style="text-align:center;">
-              <label for="otp_code" style="text-align:center; margin-bottom:0.75rem;">Ingrese el Código de 6 Dígitos:</label>
-              <input type="text" id="otp_code" name="otp_code" class="otp-input" maxlength="6" pattern="[0-9]{6}" required autofocus autocomplete="one-time-code" placeholder="••••••">
-            </div>
-            <button type="submit" class="btn-login" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
-              Verificar & Acceder ➜
-            </button>
-          </form>
-
-          <div class="actions-2fa">
-            <a href="index.php?resend_2fa=1">🔄 Reenviar Código</a>
-            <a href="index.php?cancel_2fa=1" style="color:#ef4444;">✕ Cancelar</a>
-          </div>
-
-        <?php else: ?>
-          <!-- PASO 1: USUARIO Y CONTRASEÑA -->
-          <div><span class="badge">Acceso Protegido</span></div>
-          <h2>Consola de Gestión B2B</h2>
-          <p class="sub">Telemetría de Navegación, Embudo de Caída & Administración de Leads</p>
-
-          <?php if ($login_error): ?>
-            <div class="alert"><?php echo htmlspecialchars($login_error); ?></div>
-          <?php endif; ?>
-
-          <form method="POST" action="index.php">
-            <input type="hidden" name="action" value="login">
-            <div class="form-group">
-              <label for="username">Usuario Administrador</label>
-              <input type="text" id="username" name="username" required autocomplete="off" autofocus>
-            </div>
-            <div class="form-group">
-              <label for="password">Contraseña de Seguridad</label>
-              <input type="password" id="password" name="password" required autocomplete="current-password">
-            </div>
-            <button type="submit" class="btn-login">Continuar a Verificación ➜</button>
-          </form>
+        <?php if ($login_error): ?>
+          <div class="alert"><?php echo htmlspecialchars($login_error); ?></div>
         <?php endif; ?>
 
-        <div class="footer-note">Ambiente Protegido por Blindaje Criptográfico & WhatsApp 2FA</div>
+        <form method="POST" action="index.php">
+          <input type="hidden" name="action" value="login">
+          <div class="form-group">
+            <label for="username">Usuario Administrador</label>
+            <input type="text" id="username" name="username" required autocomplete="off" autofocus>
+          </div>
+          <div class="form-group">
+            <label for="password">Contraseña de Seguridad</label>
+            <input type="password" id="password" name="password" required autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn-login">Ingresar al Panel ➜</button>
+        </form>
+        <div class="footer-note">Ambiente Protegido por Blindaje Criptográfico & Anti-Fuerza Bruta</div>
       </div>
     </body>
     </html>
@@ -3060,6 +2995,9 @@ $scans_list = $db->query("
           <button onclick="document.getElementById('modalConfigRua').style.display='flex';" style="background:#0f172a; color:#38bdf8; border:1px solid #0284c7; padding:0.6rem 1rem; border-radius:8px; font-weight:700; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem;">
             ⚙️ Casilla Central RUA (<?php echo htmlspecialchars($centralRuaEmail); ?>)
           </button>
+          <button type="button" onclick="document.getElementById('modalSopQuickwin').style.display='flex';" style="background:#475569; color:#fff; border:none; padding:0.6rem 1.1rem; border-radius:8px; font-weight:700; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.4rem; box-shadow:0 4px 10px rgba(71,85,105,0.25);">
+            📘 Manual Operativo (SOP Paso a Paso)
+          </button>
           <button onclick="document.getElementById('modalAddDmarcTenant').style.display='flex';" style="background:#0284c7; color:#fff; border:none; padding:0.6rem 1.15rem; border-radius:8px; font-weight:700; font-size:0.82rem; cursor:pointer; box-shadow:0 4px 10px rgba(2,132,199,0.25);">
             + Dar de Alta Empresa Cliente
           </button>
@@ -3553,7 +3491,121 @@ $scans_list = $db->query("
       </div>
 
       <!-- MODAL 1: DAR DE ALTA EMPRESA CLIENTE DMARC -->
-      <div id="modalAddDmarcTenant" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.7); z-index:9999; justify-content:center; align-items:center; padding:1rem; backdrop-filter:blur(3px);">
+      
+      <!-- Modal Interactivo: Manual Operativo Estándar (SOP-SEC-DMARC-01) -->
+      <div id="modalSopQuickwin" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.85); z-index:10005; justify-content:center; align-items:center; padding:1.5rem; backdrop-filter:blur(5px);">
+        <div style="background:#ffffff; border-radius:14px; width:100%; max-width:860px; max-height:92vh; overflow-y:auto; padding:2rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); position:relative;">
+          
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.2rem; border-bottom:2px solid #e2e8f0; padding-bottom:1rem;">
+            <div>
+              <div style="font-size:0.75rem; font-weight:800; color:#0284c7; text-transform:uppercase; letter-spacing:0.5px;">SOP-SEC-DMARC-01 | Keystone Cyber Defense Suite</div>
+              <h3 style="font-size:1.35rem; font-weight:800; color:#003366; margin:0.2rem 0 0 0;">Manual Operativo: Remediación DMARC & Evaluación Ejecutiva (UF 23)</h3>
+              <p style="font-size:0.82rem; color:#64748b; margin:0.2rem 0 0 0;">Procedimiento operativo paso a paso para ejecutar el servicio Quick Win sin fricción técnica.</p>
+            </div>
+            <button onclick="document.getElementById('modalSopQuickwin').style.display='none';" style="background:none; border:none; font-size:1.8rem; cursor:pointer; color:#64748b; line-height:1;">&times;</button>
+          </div>
+
+          <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:1rem; margin-bottom:1.5rem; font-size:0.82rem; color:#0369a1; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+            <div>
+              <strong>🎯 Meta del Procedimiento:</strong> Llevar a cualquier empresa con exposición crítica (30/100) a <strong>Blindaje DMARC Strict (100/100)</strong> en un ciclo de 7 días, emitiendo el Dosier Pericial final para el Directorio.
+            </div>
+            <a href="../MANUAL_OPERATIVO_SOP_DMARC_QUICKWIN.docx" download class="btn" style="background:#0284c7; color:#fff; text-decoration:none; padding:0.4rem 0.8rem; border-radius:6px; font-weight:bold; font-size:0.78rem; white-space:nowrap;">
+              ⬇️ Descargar Manual Word (.docx)
+            </a>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:1rem;">
+
+            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; background:#f8fafc;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                <strong style="color:#003366; font-size:0.9rem;">📍 Paso 1: Captura de Lead y Respaldo de Diagnóstico Inicial</strong>
+                <span style="background:#fee2e2; color:#b91c1c; font-size:0.72rem; font-weight:bold; padding:2px 8px; border-radius:12px;">Día 1</span>
+              </div>
+              <p style="font-size:0.8rem; color:#475569; margin:0 0 0.5rem 0;">
+                Ingresar a <code>Escaneos Web (tab=scans)</code>, ubicar al cliente (ej. FALP) y descargar el informe PDF preliminar con puntaje de exposición (30/100). Este documento sirve como constancia pericial antes de iniciar cambios.
+              </p>
+            </div>
+
+            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; background:#f8fafc;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                <strong style="color:#003366; font-size:0.9rem;">🏢 Paso 2: Crear el Tenant en DMARC Watchdog</strong>
+                <span style="background:#e0f2fe; color:#0369a1; font-size:0.72rem; font-weight:bold; padding:2px 8px; border-radius:12px;">Día 1</span>
+              </div>
+              <p style="font-size:0.8rem; color:#475569; margin:0 0 0.5rem 0;">
+                Hacer clic en <code>+ Dar de Alta Empresa Cliente</code> arriba. Ingresar el nombre corporativo y el dominio raíz exacto (sin 'www'). El backend configurará el aislamiento de telemetría multi-tenant.
+              </p>
+            </div>
+
+            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; background:#f8fafc;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                <strong style="color:#003366; font-size:0.9rem;">✉️ Paso 3: Entregar el Registro DNS de Auditoría al Cliente</strong>
+                <span style="background:#e0f2fe; color:#0369a1; font-size:0.72rem; font-weight:bold; padding:2px 8px; border-radius:12px;">Días 1 a 2</span>
+              </div>
+              <p style="font-size:0.8rem; color:#475569; margin:0 0 0.5rem 0;">
+                Enviar por correo al administrador de TI del cliente la instrucción para publicar el registro TXT en su zona DNS (Cloudflare, cPanel, AWS):
+              </p>
+              <div style="background:#0f172a; color:#38bdf8; padding:0.6rem 0.8rem; border-radius:6px; font-family:monospace; font-size:0.75rem; word-break:break-all;">
+                Host: _dmarc &nbsp;|&nbsp; Tipo: TXT &nbsp;|&nbsp; Valor: "v=DMARC1; p=none; rua=mailto:dmarc-rua@keystoneadvisors.cl; ruf=mailto:dmarc-rua@keystoneadvisors.cl; fo=1;"
+              </div>
+            </div>
+
+            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; background:#f8fafc;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                <strong style="color:#003366; font-size:0.9rem;">🔄 Paso 4: Monitoreo Forense e Ingesta RUA Automática</strong>
+                <span style="background:#fef3c7; color:#92400e; font-size:0.72rem; font-weight:bold; padding:2px 8px; border-radius:12px;">Días 2 a 5</span>
+              </div>
+              <p style="font-size:0.8rem; color:#475569; margin:0 0 0.5rem 0;">
+                Pulsar diariamente el botón verde <code>🔄 Sincronizar Buzón RUA (IMAP)</code>. El sistema descargará los reportes XML de Google y Microsoft, identificando servidores legítimos (Workspace, M365, Mailchimp) versus intentos maliciosos de spoofing.
+              </p>
+            </div>
+
+            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; background:#f8fafc;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                <strong style="color:#003366; font-size:0.9rem;">🛡️ Paso 5: Ajuste de SPF y Cierre a Modo Estricto (p=reject)</strong>
+                <span style="background:#dcfce7; color:#166534; font-size:0.72rem; font-weight:bold; padding:2px 8px; border-radius:12px;">Día 6</span>
+              </div>
+              <p style="font-size:0.8rem; color:#475569; margin:0 0 0.5rem 0;">
+                Cuando el 100% de los envíos legítimos cumplan SPF/DKIM, se instruye al cliente actualizar el registro a la política definitiva de bloqueo:
+              </p>
+              <div style="background:#0f172a; color:#4ade80; padding:0.6rem 0.8rem; border-radius:6px; font-family:monospace; font-size:0.75rem; word-break:break-all;">
+                Host: _dmarc &nbsp;|&nbsp; Tipo: TXT &nbsp;|&nbsp; Valor: "v=DMARC1; p=reject; rua=mailto:dmarc-rua@keystoneadvisors.cl; aspf=r; adkim=r; pct=100;"
+              </div>
+            </div>
+
+            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; background:#f8fafc;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                <strong style="color:#003366; font-size:0.9rem;">🌐 Paso 6: Endurecimiento Web (Cabeceras HSTS y Anti-Clickjacking)</strong>
+                <span style="background:#f1f5f9; color:#475569; font-size:0.72rem; font-weight:bold; padding:2px 8px; border-radius:12px;">Día 6</span>
+              </div>
+              <p style="font-size:0.8rem; color:#475569; margin:0 0 0.5rem 0;">
+                Entregar al administrador web del cliente las cabeceras HTTP de seguridad para Nginx/Apache o Cloudflare Rules: <code>Strict-Transport-Security: max-age=31536000; includeSubDomains; preload</code> y <code>X-Frame-Options: SAMEORIGIN</code>.
+              </p>
+            </div>
+
+            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; background:#dcfce7; border-color:#86efac;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                <strong style="color:#166534; font-size:0.9rem;">📄 Paso 7: Re-escaneo Final y Emisión del Certificado 100/100</strong>
+                <span style="background:#166534; color:#fff; font-size:0.72rem; font-weight:bold; padding:2px 8px; border-radius:12px;">Día 7 (Cierre)</span>
+              </div>
+              <p style="font-size:0.8rem; color:#14532d; margin:0 0 0.5rem 0;">
+                Regresar a <code>Escaneos Web (tab=scans)</code>, pulsar <strong>Re-escanear Dominio</strong>. El sistema verificará en vivo la propagación DNS, elevará el puntaje a <strong>100/100 (Blindado)</strong> y habilitará el botón de descarga del <strong>Dosier Pericial PDF de Cierre</strong> para la sesión consultiva final con el cliente.
+              </p>
+            </div>
+
+          </div>
+
+          <div style="margin-top:1.5rem; text-align:right;">
+            <button onclick="document.getElementById('modalSopQuickwin').style.display='none';" style="background:#0f172a; color:#fff; border:none; padding:0.55rem 1.3rem; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer;">
+              Cerrar Guía Operativa
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+
+
+<div id="modalAddDmarcTenant" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.7); z-index:9999; justify-content:center; align-items:center; padding:1rem; backdrop-filter:blur(3px);">
         <div style="background:#fff; border-radius:12px; width:100%; max-width:580px; padding:2rem; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.75rem;">
             <h3 style="font-size:1.2rem; font-weight:800; color:#003366; margin:0;">🏢 Alta de Empresa Cliente DMARC</h3>
@@ -3876,7 +3928,7 @@ $scans_list = $db->query("
                   <th style="padding:0.75rem;">Dominios / Alcance</th>
                   <th style="padding:0.75rem;">Vectores Simulados</th>
                   <th style="padding:0.75rem; text-align:center;">Estado</th>
-                  <th style="padding:0.75rem; text-align:center;">Gestión</th>
+                  <th style="padding:0.75rem; text-align:center; min-width:280px;">Nómina, Telemetría & Dosier PDF</th>
                 </tr>
               </thead>
               <tbody>
@@ -3908,16 +3960,43 @@ $scans_list = $db->query("
                       <?php endif; ?>
                     </td>
                     <td style="padding:0.75rem; text-align:center;">
-                      <form method="POST" style="display:inline-flex; gap:0.3rem;">
-                        <input type="hidden" name="action" value="update_redteam_status">
-                        <input type="hidden" name="campaign_id" value="<?php echo $camp['id']; ?>">
-                        <select name="status" onchange="this.form.submit()" style="padding:0.25rem 0.45rem; font-size:0.75rem; border:1px solid #cbd5e1; border-radius:4px;">
-                          <option value="PLANNING" <?php echo $camp['status'] === 'PLANNING' ? 'selected' : ''; ?>>Planificación</option>
-                          <option value="ACTIVE" <?php echo $camp['status'] === 'ACTIVE' ? 'selected' : ''; ?>>Activar</option>
-                          <option value="COMPLETED" <?php echo $camp['status'] === 'COMPLETED' ? 'selected' : ''; ?>>Completar</option>
-                          <option value="CANCELLED" <?php echo $camp['status'] === 'CANCELLED' ? 'selected' : ''; ?>>Cancelar</option>
-                        </select>
-                      </form>
+                      <div style="display:inline-flex; align-items:center; gap:0.4rem; flex-wrap:nowrap;">
+                        <!-- Selector de Estado -->
+                        <form method="POST" style="margin:0;">
+                          <input type="hidden" name="action" value="update_redteam_status">
+                          <input type="hidden" name="campaign_id" value="<?php echo $camp['id']; ?>">
+                          <select name="status" onchange="this.form.submit()" style="padding:0.3rem 0.5rem; font-size:0.75rem; font-weight:700; border:1px solid #cbd5e1; border-radius:6px; background:#fff; cursor:pointer;">
+                            <option value="PLANNING" <?php echo $camp['status'] === 'PLANNING' ? 'selected' : ''; ?>>⏳ Planificación</option>
+                            <option value="ACTIVE" <?php echo $camp['status'] === 'ACTIVE' ? 'selected' : ''; ?>>● Activar</option>
+                            <option value="COMPLETED" <?php echo $camp['status'] === 'COMPLETED' ? 'selected' : ''; ?>>✓ Completar</option>
+                            <option value="CANCELLED" <?php echo $camp['status'] === 'CANCELLED' ? 'selected' : ''; ?>>✕ Cancelar</option>
+                          </select>
+                        </form>
+
+                        <!-- Botón Editar Campaña -->
+                        <button type="button" 
+                                onclick='openEditCampaignModal(<?php echo json_encode($camp); ?>)'
+                                style="background:#475569; color:#fff; border:none; padding:0.35rem 0.65rem; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;"
+                                title="Editar nombre, plan, dominios o vectores">
+                          ✏️ Editar
+                        </button>
+
+                        <!-- Botón Ver Telemetría & Nómina -->
+                        <button type="button" 
+                                onclick="openCampaignTelemetryModal(<?php echo $camp['id']; ?>, '<?php echo htmlspecialchars(addslashes($camp['company_name'])); ?>', '<?php echo htmlspecialchars(addslashes($camp['target_domains'])); ?>')"
+                                style="background:#0284c7; color:#fff; border:none; padding:0.35rem 0.65rem; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:0.3rem;"
+                                title="Cargar colaboradores y ver clics en tiempo real">
+                          📊 Telemetría
+                        </button>
+
+                        <!-- Botón Generar Informe Final PDF -->
+                        <a href="index.php?tab=redteaming&action=download_redteam_dossier&campaign_id=<?php echo $camp['id']; ?>" 
+                           target="_blank"
+                           style="background:#1e293b; color:#fff; text-decoration:none; padding:0.35rem 0.65rem; border-radius:6px; font-size:0.75rem; font-weight:700; display:inline-flex; align-items:center; gap:0.3rem; border:1px solid #334155;"
+                           title="Descargar Dosier Pericial Ejecutivo Ley 21.459 en PDF">
+                          📄 Dosier PDF
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 <?php endforeach; ?>
@@ -4103,6 +4182,488 @@ $scans_list = $db->query("
           cb.checked = targetVectors.includes(cb.value);
         });
       }
+      </script>
+
+
+    
+      
+      <!-- Modal Secundario: Previsualizador del Correo Señuelo -->
+      <div id="modalLurePreview" style="display:none; position:fixed; inset:0; background:rgba(11,19,41,0.85); z-index:10000; justify-content:center; align-items:center; padding:1.5rem; backdrop-filter:blur(5px);">
+        <div style="background:#ffffff; border-radius:14px; width:100%; max-width:680px; max-height:90vh; overflow-y:auto; padding:2rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); position:relative;">
+          
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.25rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.75rem;">
+            <div>
+              <span id="lureVectorBadge" style="background:#eff6ff; color:#1d4ed8; padding:0.2rem 0.6rem; border-radius:99px; font-size:0.72rem; font-weight:800; text-transform:uppercase;">VECTOR</span>
+              <h3 style="font-size:1.15rem; font-weight:800; color:#0f172a; margin:0.35rem 0 0 0;">Inspección del Cebo de Ciberataque</h3>
+              <p style="font-size:0.8rem; color:#64748b; margin:0;">Revise si el nivel de persuasión y contexto engañaría al colaborador.</p>
+            </div>
+            <button onclick="document.getElementById('modalLurePreview').style.display='none';" style="background:none; border:none; font-size:1.6rem; cursor:pointer; color:#64748b; line-height:1;">&times;</button>
+          </div>
+
+          <!-- Selector de Plantilla Institucional Clonada -->
+          <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:0.75rem 1rem; margin-bottom:1rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+            <label style="font-size:0.82rem; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:0.4rem;">
+              <span>🏛️ Seleccionar Formato Institucional:</span>
+            </label>
+            <select id="selectLureTemplate" onchange="changeLureTemplate(this.value)" style="padding:0.4rem 0.6rem; border:1px solid #94a3b8; border-radius:6px; font-size:0.8rem; font-weight:bold; color:#003366; background:#fff; cursor:pointer;">
+              <option value="AUTO">🤖 Recomendado por IA según Rol</option>
+              <optgroup label="Plantillas Oficiales SII Clonadas">
+                <option value="SII_CARPETA">📂 SII: Carpeta Tributaria Electrónica Compartida</option>
+                <option value="SII_RESOLUCION">⚖️ SII: Notificación Resolución Exenta (RAV)</option>
+                <option value="SII_F1955">🏦 SII: Inconsistencias F1955 Saldos Bancarios >1.500 UF</option>
+              </optgroup>
+              <optgroup label="Ingeniería Social Financiera">
+                <option value="INVOICE_FRAUD">💳 Proveedor: Cambio de Cuenta Bancaria en Factura</option>
+                <option value="BEC_CEO">👔 CEO / Directorio: Instrucción Privada Urgente</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <!-- Cabeceras simuladas del cliente de correo con edición -->
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1rem; font-size:0.82rem;">
+            <div style="margin-bottom:0.6rem; display:flex; align-items:center; gap:0.5rem;">
+              <strong style="color:#475569; width:65px;">Para:</strong>
+              <input type="text" id="lureToInput" style="flex:1; padding:0.35rem 0.6rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.82rem; background:#fff; color:#0f172a;" readonly>
+            </div>
+            <div style="margin-bottom:0.6rem; display:flex; align-items:center; gap:0.5rem;">
+              <strong style="color:#475569; width:65px;">Remitente:</strong>
+              <input type="text" id="lureFromInput" style="flex:1; padding:0.35rem 0.6rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.82rem; background:#fff; color:#b91c1c; font-weight:bold;">
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <strong style="color:#475569; width:65px;">Asunto:</strong>
+              <input type="text" id="lureSubjectInput" style="flex:1; padding:0.35rem 0.6rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.82rem; background:#fff; color:#0f172a; font-weight:800;">
+            </div>
+          </div>
+
+          <!-- Selector de Modo de Visualización: Vista Previa Renderizada vs Editor de Texto -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <span style="font-size:0.75rem; font-weight:bold; color:#475569; text-transform:uppercase;">Vista Previa del Mensaje (Renderizado Exacto):</span>
+            <div style="display:flex; gap:0.4rem;">
+              <button type="button" id="btnViewHtmlMode" onclick="toggleLureViewMode('html')" style="background:#0284c7; color:#fff; border:none; padding:0.25rem 0.6rem; border-radius:4px; font-size:0.72rem; font-weight:bold; cursor:pointer;">
+                🎨 Vista Oficial
+              </button>
+              <button type="button" id="btnViewTextMode" onclick="toggleLureViewMode('text')" style="background:#e2e8f0; color:#475569; border:none; padding:0.25rem 0.6rem; border-radius:4px; font-size:0.72rem; font-weight:bold; cursor:pointer;">
+                ✏️ Editar Texto Plano
+              </button>
+            </div>
+          </div>
+
+          <!-- Contenedor 1: Vista Previa Renderizada en Iframe Seguro -->
+          <div id="lureHtmlContainer" style="border:1px solid #cbd5e1; border-radius:8px; background:#f4f6f8; margin-bottom:1.5rem; overflow:hidden;">
+            <iframe id="lureIframePreview" style="width:100%; height:320px; border:none; background:#fff;"></iframe>
+          </div>
+
+          <!-- Contenedor 2: Editor de Texto -->
+          <div id="lureTextContainer" style="display:none; margin-bottom:1.5rem;">
+            <textarea id="lureBodyInput" rows="10" style="width:100%; padding:0.85rem; border:1px solid #cbd5e1; border-radius:8px; font-family:monospace; font-size:0.82rem; line-height:1.5; color:#0f172a;"></textarea>
+          </div>
+
+          <!-- Botonera de decisión -->
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; border-top:1px solid #e2e8f0; padding-top:1rem;">
+            <span style="font-size:0.75rem; color:#64748b;">🛡️ Simulación controlada e inocua con Just-in-Time Learning</span>
+            <div style="display:flex; gap:0.5rem;">
+              <button type="button" onclick="document.getElementById('modalLurePreview').style.display='none';" style="background:#e2e8f0; color:#475569; border:none; padding:0.55rem 1.1rem; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer;">
+                Cerrar
+              </button>
+              <button type="button" id="btnSendTargetLure" onclick="sendTargetLureNow()" style="background:#059669; color:#ffffff; border:none; padding:0.55rem 1.1rem; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.35rem;">
+                <span>🚀 Disparar Este Correo Ahora</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+
+      <!-- Modal Telemetría & Gestión de Nómina por Campaña -->
+      
+      <!-- Modal: Editar Campaña Corporativa B2B -->
+      <div id="modalEditCampaign" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:9999; justify-content:center; align-items:center; padding:1.5rem; backdrop-filter:blur(4px);">
+        <div style="background:#ffffff; border-radius:14px; width:100%; max-width:600px; max-height:90vh; overflow-y:auto; padding:2rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); position:relative;">
+          
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; border-bottom:1px solid #e2e8f0; padding-bottom:1rem;">
+            <div>
+              <div style="font-size:0.75rem; font-weight:800; color:#0284c7; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.25rem;">Suite Red Teaming B2B</div>
+              <h3 style="font-size:1.3rem; font-weight:800; color:#003366; margin:0;">Editar Campaña Corporativa</h3>
+            </div>
+            <button onclick="document.getElementById('modalEditCampaign').style.display='none';" style="background:none; border:none; font-size:1.6rem; cursor:pointer; color:#64748b; line-height:1;">&times;</button>
+          </div>
+
+          <form method="POST">
+            <input type="hidden" name="action" value="edit_redteam_campaign">
+            <input type="hidden" name="campaign_id" id="editCampId" value="">
+
+            <div style="margin-bottom:1rem;">
+              <label style="display:block; font-size:0.8rem; font-weight:700; color:#1e293b; margin-bottom:0.3rem;">Razón Social / Empresa Cliente:</label>
+              <input type="text" name="company_name" id="editCampCompany" required style="width:100%; padding:0.5rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+              <div>
+                <label style="display:block; font-size:0.8rem; font-weight:700; color:#1e293b; margin-bottom:0.3rem;">Nombre Contacto / C-Level:</label>
+                <input type="text" name="contact_name" id="editCampContact" required style="width:100%; padding:0.5rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+              </div>
+              <div>
+                <label style="display:block; font-size:0.8rem; font-weight:700; color:#1e293b; margin-bottom:0.3rem;">Correo Contacto (Reportes):</label>
+                <input type="email" name="contact_email" id="editCampEmail" required style="width:100%; padding:0.5rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+              <div>
+                <label style="display:block; font-size:0.8rem; font-weight:700; color:#1e293b; margin-bottom:0.3rem;">Dominio Corporativo Autorizado:</label>
+                <input type="text" name="target_domains" id="editCampDomain" required placeholder="empresa.cl" style="width:100%; padding:0.5rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+              </div>
+              <div>
+                <label style="display:block; font-size:0.8rem; font-weight:700; color:#1e293b; margin-bottom:0.3rem;">Plan Contratado:</label>
+                <select name="plan_type" id="editCampPlan" style="width:100%; padding:0.5rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; background:#fff;">
+                  <option value="STARTER">Starter (USD $1.200 - 2 Vectores)</option>
+                  <option value="PROFESSIONAL">Professional (USD $2.400 - 4 Vectores)</option>
+                  <option value="ENTERPRISE">Enterprise (USD $4.500 - Full + Vishing Voz)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="margin-bottom:1.5rem;">
+              <label style="display:block; font-size:0.8rem; font-weight:700; color:#1e293b; margin-bottom:0.5rem;">Vectores de Simulación Habilitados:</label>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; background:#f8fafc; padding:0.8rem; border-radius:6px; border:1px solid #e2e8f0; font-size:0.8rem;">
+                <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="BEC" class="edit-vec-cb">
+                  <span>👔 Fraude del CEO (BEC)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="SPEAR_PHISHING_SII" class="edit-vec-cb">
+                  <span>🏛️ Suplantación SII / Notificaciones</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="INVOICE_FRAUD" class="edit-vec-cb">
+                  <span>💳 Cambio de Cuenta Proveedor</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="PASSKEY_BYPASS" class="edit-vec-cb">
+                  <span>🔑 Portal Falso Microsoft/Google</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="VISHING_AI" class="edit-vec-cb">
+                  <span>📞 Vishing con Voz IA Sintética</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+                  <input type="checkbox" name="simulated_vectors[]" value="WHATSAPP_EXECUTIVE" class="edit-vec-cb">
+                  <span>💬 WhatsApp Ejecutivo Suplantado</span>
+                </label>
+              </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+              <button type="button" onclick="document.getElementById('modalEditCampaign').style.display='none';" style="background:#e2e8f0; color:#475569; border:none; padding:0.55rem 1.1rem; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer;">Cancelar</button>
+              <button type="submit" style="background:#0284c7; color:#fff; border:none; padding:0.55rem 1.3rem; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer;">Guardar Cambios</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+<div id="modalCampaignTelemetry" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:9999; justify-content:center; align-items:center; padding:1.5rem; backdrop-filter:blur(4px);">
+        <div style="background:#ffffff; border-radius:14px; width:100%; max-width:760px; max-height:90vh; overflow-y:auto; padding:2rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); position:relative;">
+          
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; border-bottom:1px solid #e2e8f0; padding-bottom:1rem;">
+            <div>
+              <div style="font-size:0.75rem; font-weight:800; color:#0284c7; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.25rem;">Consola Operativa de Red Teaming</div>
+              <h3 id="modalTelemetryTitle" style="font-size:1.3rem; font-weight:800; color:#003366; margin:0;">Nómina & Telemetría</h3>
+              <span id="modalTelemetryDomain" style="color:#64748b; font-size:0.85rem;">@empresa.cl</span>
+            </div>
+            <button onclick="document.getElementById('modalCampaignTelemetry').style.display='none';" style="background:none; border:none; font-size:1.6rem; cursor:pointer; color:#64748b; line-height:1;">&times;</button>
+          </div>
+
+          <!-- Selector de Sub-Pestaña dentro del Modal -->
+          <div style="display:flex; gap:0.75rem; margin-bottom:1.5rem; border-bottom:2px solid #f1f5f9; padding-bottom:0.5rem;">
+            <button type="button" id="tabBtnTargets" onclick="switchModalTab('targets')" style="background:none; border:none; font-weight:800; font-size:0.9rem; color:#0284c7; cursor:pointer; padding:0.4rem 0.75rem; border-bottom:3px solid #0284c7;">
+              👥 Cargar / Ver Nómina Objetivo
+            </button>
+            <button type="button" id="tabBtnMetrics" onclick="switchModalTab('metrics')" style="background:none; border:none; font-weight:700; font-size:0.9rem; color:#64748b; cursor:pointer; padding:0.4rem 0.75rem; border-bottom:3px solid transparent;">
+              📈 Telemetría & Tasa de Clics
+            </button>
+          </div>
+
+          <!-- Vista 1: Carga y Lista de Nómina -->
+          <div id="modalViewTargets">
+            <form method="POST" style="margin-bottom:1.5rem;">
+              <input type="hidden" name="action" value="import_redteam_targets">
+              <input type="hidden" name="campaign_id" id="targetCampaignId" value="">
+              
+              <label style="display:block; font-size:0.82rem; font-weight:700; color:#1e293b; margin-bottom:0.4rem;">
+                Pegar Nómina de Colaboradores (Formato CSV o Texto Línea a Línea):
+              </label>
+              <textarea name="targets_csv" rows="4" placeholder="Nombre,Correo,Cargo,Departamento&#10;Carlos Silva,csilva@empresa.cl,CFO,Finanzas&#10;Andrea Rojas,arojas@empresa.cl,Tesorera,Tesorería" style="width:100%; padding:0.75rem; border:1px solid #cbd5e1; border-radius:8px; font-family:monospace; font-size:0.82rem; margin-bottom:0.6rem;"></textarea>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:0.75rem; color:#64748b;">Formato: <code>Nombre,Correo,Cargo,Departamento</code></span>
+                <button type="submit" style="background:#0284c7; color:#fff; border:none; padding:0.5rem 1rem; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer;">
+                  + Importar a la Campaña
+                </button>
+              </div>
+            </form>
+
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem;">
+              <h4 style="font-size:0.9rem; color:#0f172a; margin-bottom:0.5rem;">Colaboradores Habilitados en la Campaña:</h4>
+              <div id="targetsListContainer" style="max-height:220px; overflow-y:auto; font-size:0.8rem; color:#475569;">
+                Cargando nómina...
+              </div>
+            </div>
+          </div>
+
+          <!-- Vista 2: Telemetría & Tasa de Vulnerabilidad -->
+          <div id="modalViewMetrics" style="display:none;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
+              <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; text-align:center;">
+                <div style="font-size:0.75rem; color:#64748b; text-transform:uppercase;">Nómina Total</div>
+                <div id="metricTargetsCount" style="font-size:1.6rem; font-weight:800; color:#0f172a;">-</div>
+              </div>
+              <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:1rem; text-align:center;">
+                <div style="font-size:0.75rem; color:#1d4ed8; text-transform:uppercase;">Apertura Señuelo</div>
+                <div id="metricOpenRate" style="font-size:1.6rem; font-weight:800; color:#1d4ed8;">-%</div>
+              </div>
+              <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:1rem; text-align:center;">
+                <div style="font-size:0.75rem; color:#b45309; text-transform:uppercase;">Tasa de Clics</div>
+                <div id="metricClickRate" style="font-size:1.6rem; font-weight:800; color:#d97706;">-%</div>
+              </div>
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:1rem; text-align:center;">
+                <div style="font-size:0.75rem; color:#b91c1c; text-transform:uppercase;">Riesgo Fraude</div>
+                <div id="metricCompRate" style="font-size:1.6rem; font-weight:800; color:#dc2626;">-%</div>
+              </div>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem;">
+              <h4 style="font-size:0.9rem; color:#0f172a; margin-bottom:0.75rem;">Simulador de Señuelo Just-in-Time (Prueba en Vivo):</h4>
+              <p style="font-size:0.8rem; color:#64748b; line-height:1.5; margin-bottom:0.75rem;">
+                Haga clic a continuación para probar el enlace real que recibe un colaborador y verificar la experiencia educativa inmediata:
+              </p>
+              <div id="sampleTargetLink" style="font-size:0.78rem; font-family:monospace; background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:0.6rem; word-break:break-all;">
+                Generando enlace de prueba...
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <script>
+      let currentTelemetryCampId = 0;
+
+      
+      function openEditCampaignModal(camp) {
+        document.getElementById('editCampId').value = camp.id;
+        document.getElementById('editCampCompany').value = camp.company_name;
+        document.getElementById('editCampContact').value = camp.contact_name;
+        document.getElementById('editCampEmail').value = camp.contact_email;
+        document.getElementById('editCampDomain').value = camp.target_domains;
+        document.getElementById('editCampPlan').value = camp.plan_type;
+
+        const vectors = (camp.simulated_vectors || '').split(',').map(s => s.trim());
+        document.querySelectorAll('.edit-vec-cb').forEach(cb => {
+          cb.checked = vectors.includes(cb.value);
+        });
+
+        document.getElementById('modalEditCampaign').style.display = 'flex';
+      }
+
+function openCampaignTelemetryModal(campId, companyName, domains) {
+        currentTelemetryCampId = campId;
+        document.getElementById('targetCampaignId').value = campId;
+        document.getElementById('modalTelemetryTitle').innerText = companyName;
+        document.getElementById('modalTelemetryDomain').innerText = '@' + domains;
+        document.getElementById('modalCampaignTelemetry').style.display = 'flex';
+        switchModalTab('targets');
+        loadCampaignTelemetryData(campId);
+      }
+
+      function switchModalTab(tab) {
+        if (tab === 'targets') {
+          document.getElementById('modalViewTargets').style.display = 'block';
+          document.getElementById('modalViewMetrics').style.display = 'none';
+          document.getElementById('tabBtnTargets').style.borderBottom = '3px solid #0284c7';
+          document.getElementById('tabBtnTargets').style.color = '#0284c7';
+          document.getElementById('tabBtnMetrics').style.borderBottom = '3px solid transparent';
+          document.getElementById('tabBtnMetrics').style.color = '#64748b';
+        } else {
+          document.getElementById('modalViewTargets').style.display = 'none';
+          document.getElementById('modalViewMetrics').style.display = 'block';
+          document.getElementById('tabBtnMetrics').style.borderBottom = '3px solid #0284c7';
+          document.getElementById('tabBtnMetrics').style.color = '#0284c7';
+          document.getElementById('tabBtnTargets').style.borderBottom = '3px solid transparent';
+          document.getElementById('tabBtnTargets').style.color = '#64748b';
+        }
+      }
+
+      async function loadCampaignTelemetryData(campId) {
+        const container = document.getElementById('targetsListContainer');
+        container.innerHTML = '<span style="color:#64748b;">Consultando colaboradores registrados...</span>';
+        
+        try {
+          const res = await fetch(`api/redteam_api.php?action=get_campaign_details&campaign_id=${campId}`);
+          const json = await res.json();
+
+          if (json.success) {
+            const data = json.data;
+            document.getElementById('metricTargetsCount').innerText = data.metrics.total_targets;
+            document.getElementById('metricOpenRate').innerText = data.metrics.open_rate + '%';
+            document.getElementById('metricClickRate').innerText = data.metrics.click_rate + '%';
+            document.getElementById('metricCompRate').innerText = data.metrics.compromised_rate + '%';
+
+            if (data.targets && data.targets.length > 0) {
+              let html = '<table style="width:100%; border-collapse:collapse; font-size:0.78rem;">';
+              html += '<tr style="border-bottom:1px solid #cbd5e1; font-weight:bold; color:#0f172a;"><th style="padding:0.4rem; text-align:left;">Colaborador</th><th style="padding:0.4rem; text-align:left;">Área</th><th style="padding:0.4rem; text-align:center;">Estado</th><th style="padding:0.4rem; text-align:center;">Enlace Señuelo</th></tr>';
+              window.currentCampaignTargets = data.targets;
+              data.targets.forEach((t, idx) => {
+                let badge = '<span style="color:#16a34a; font-weight:bold;">⏳ Pendiente</span>';
+                if (t.status === 'SENT') badge = '<span style="color:#0284c7; font-weight:bold;">✉️ Enviado</span>';
+                if (t.status === 'CLICKED') badge = '<span style="color:#dc2626; font-weight:bold;">🔴 Hizo Clic</span>';
+                
+                const testUrl = `${window.location.origin}/shield/rt.php?t=${t.unique_token}`;
+                html += `<tr style="border-bottom:1px solid #f1f5f9;">
+                  <td style="padding:0.6rem 0.4rem;"><strong>${t.full_name}</strong><br><span style="color:#64748b; font-size:0.75rem;">${t.email}</span></td>
+                  <td style="padding:0.6rem 0.4rem; color:#475569;">${t.role_title ? t.role_title + '<br>' : ''}<small style="color:#64748b;">(${t.department})</small></td>
+                  <td style="padding:0.6rem 0.4rem; text-align:center;">${badge}</td>
+                  <td style="padding:0.6rem 0.4rem; text-align:center; white-space:nowrap;">
+                    <button type="button" onclick="previewTargetLureModal(${idx})" style="background:#0f172a; color:#f8fafc; border:1px solid #334155; padding:0.3rem 0.6rem; border-radius:5px; font-size:0.75rem; font-weight:700; cursor:pointer;" title="Inspeccionar el correo que recibirá">
+                      👁️ Revisar Correo
+                    </button>
+                    <button type="button" onclick="promptEditTarget(${t.id}, '${(t.full_name||'').replace(/'/g, "\'")}', '${t.email}', '${(t.role_title||'').replace(/'/g, "\'")}', '${(t.department||'').replace(/'/g, "\'")}')" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:0.3rem 0.5rem; border-radius:5px; font-size:0.75rem; font-weight:700; cursor:pointer; margin-left:0.3rem;" title="Editar datos del colaborador">
+                      ✏️
+                    </button>
+                    <button type="button" onclick="deleteCampaignTarget(${t.id})" style="background:#fee2e2; color:#b91c1c; border:none; padding:0.3rem 0.5rem; border-radius:5px; font-size:0.75rem; font-weight:700; cursor:pointer; margin-left:0.3rem;" title="Eliminar colaborador de la nómina">
+                      🗑️
+                    </button>
+                    <a href="${testUrl}" target="_blank" style="color:#0284c7; text-decoration:none; font-size:0.75rem; font-weight:700; margin-left:0.4rem;" title="Simular que el usuario hace clic">
+                      Probar Clic ➜
+                    </a>
+                  </td>
+                </tr>`;
+              });
+              html += '</table>';
+              container.innerHTML = html;
+
+              // Enlace de muestra
+              const firstToken = data.targets[0].unique_token;
+              document.getElementById('sampleTargetLink').innerHTML = `<a href="${window.location.origin}/shield/rt.php?t=${firstToken}" target="_blank" style="color:#0284c7; font-weight:bold;">${window.location.origin}/shield/rt.php?t=${firstToken} ↗</a>`;
+            } else {
+              container.innerHTML = '<span style="color:#94a3b8;">No se han cargado colaboradores para esta campaña aún. Ingrese una lista arriba para iniciar.</span>';
+              document.getElementById('sampleTargetLink').innerHTML = '<span style="color:#94a3b8;">Cargue colaboradores primero para generar enlaces de simulación.</span>';
+            }
+          } else {
+            container.innerHTML = '<span style="color:#ef4444;">No fue posible obtener la nómina.</span>';
+          }
+        } catch (e) {
+          container.innerHTML = '<span style="color:#ef4444;">Error de conexión.</span>';
+        }
+      }
+      
+
+      let activeLureTarget = null;
+      let currentLureData = null;
+
+      function previewTargetLureModal(targetIdx) {
+        if (!window.currentCampaignTargets || !window.currentCampaignTargets[targetIdx]) {
+          alert('Datos del colaborador no disponibles.');
+          return;
+        }
+        activeLureTarget = window.currentCampaignTargets[targetIdx];
+        currentLureData = activeLureTarget.lure_preview;
+
+        document.getElementById('selectLureTemplate').value = 'AUTO';
+        renderLureData(currentLureData);
+
+        const btn = document.getElementById('btnSendTargetLure');
+        btn.disabled = false;
+        const firstName = activeLureTarget.full_name ? activeLureTarget.full_name.split(' ')[0] : 'Colaborador';
+        btn.innerHTML = `<span>🚀 Disparar Este Correo a ${firstName}</span>`;
+
+        toggleLureViewMode('html');
+        document.getElementById('modalLurePreview').style.display = 'flex';
+      }
+
+      function renderLureData(lure) {
+        document.getElementById('lureVectorBadge').innerText = lure.vector || 'SIMULACIÓN';
+        document.getElementById('lureToInput').value = `${activeLureTarget.full_name} <${activeLureTarget.email}>`;
+        document.getElementById('lureFromInput').value = lure.sender_display || '';
+        document.getElementById('lureSubjectInput').value = lure.subject || '';
+        document.getElementById('lureBodyInput').value = lure.body || '';
+
+        // Renderizar en iframe
+        const iframe = document.getElementById('lureIframePreview');
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        doc.open();
+        doc.write(lure.html || '<div style="font-family:Arial; padding:20px; white-space:pre-wrap;">' + (lure.body || '') + '</div>');
+        doc.close();
+      }
+
+      async function changeLureTemplate(templateKey) {
+        if (!activeLureTarget) return;
+        try {
+          const form = new FormData();
+          form.append('action', 'get_template_preview');
+          form.append('target_id', activeLureTarget.id);
+          form.append('campaign_id', activeLureTarget.campaign_id);
+          form.append('template_key', templateKey);
+
+          const res = await fetch('api/redteam_api.php', { method: 'POST', body: form });
+          const json = await res.json();
+          if (json.success) {
+            currentLureData = json.data;
+            renderLureData(currentLureData);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      function toggleLureViewMode(mode) {
+        if (mode === 'html') {
+          document.getElementById('lureHtmlContainer').style.display = 'block';
+          document.getElementById('lureTextContainer').style.display = 'none';
+          document.getElementById('btnViewHtmlMode').style.background = '#0284c7';
+          document.getElementById('btnViewHtmlMode').style.color = '#fff';
+          document.getElementById('btnViewTextMode').style.background = '#e2e8f0';
+          document.getElementById('btnViewTextMode').style.color = '#475569';
+        } else {
+          document.getElementById('lureHtmlContainer').style.display = 'none';
+          document.getElementById('lureTextContainer').style.display = 'block';
+          document.getElementById('btnViewTextMode').style.background = '#0284c7';
+          document.getElementById('btnViewTextMode').style.color = '#fff';
+          document.getElementById('btnViewHtmlMode').style.background = '#e2e8f0';
+          document.getElementById('btnViewHtmlMode').style.color = '#475569';
+        }
+      }
+
+      async function sendTargetLureNow() {
+        if (!activeLureTarget) return;
+        const btn = document.getElementById('btnSendTargetLure');
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ Conectando con SMTP Titan...</span>';
+
+        try {
+          const form = new FormData();
+          form.append('action', 'send_target_lure_smtp');
+          form.append('target_id', activeLureTarget.id);
+          form.append('campaign_id', activeLureTarget.campaign_id);
+
+          const res = await fetch('api/redteam_api.php', { method: 'POST', body: form });
+          const json = await res.json();
+
+          if (json.success) {
+            alert(json.message);
+            document.getElementById('modalLurePreview').style.display = 'none';
+            loadCampaignTelemetryData(activeLureTarget.campaign_id);
+          } else {
+            alert('Error al despachar: ' + json.error);
+            btn.disabled = false;
+            btn.innerHTML = '<span>Reintentar Despacho</span>';
+          }
+        } catch (e) {
+          alert('Error de red al intentar despachar.');
+          btn.disabled = false;
+          btn.innerHTML = '<span>Reintentar Despacho</span>';
+        }
+      }
+
       </script>
 
 
@@ -4751,44 +5312,6 @@ $scans_list = $db->query("
               </div>
             </div>
 
-            <!-- Fila Presupuesto y Puja para Google Ads / Pauta Digital (SOL-0189) -->
-            <div id="boxGoogleAdsBudget" style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:1rem; margin-bottom:1rem;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
-                <span style="font-weight:800; font-size:0.85rem; color:#0369a1; display:flex; align-items:center; gap:0.4rem;">
-                  <span>💰</span> Presupuesto de Campaña & Simulación de Puja Google Ads
-                </span>
-                <span style="font-size:0.72rem; background:#e0f2fe; color:#0369a1; padding:0.15rem 0.5rem; border-radius:4px; font-weight:700;">
-                  Customer ID: 396-771-8344
-                </span>
-              </div>
-              <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:0.75rem;">
-                <div>
-                  <label style="display:block; font-size:0.75rem; font-weight:700; color:#334155; margin-bottom:0.25rem;">Presupuesto Diario Sugerido:</label>
-                  <div style="display:flex; align-items:center; gap:0.35rem;">
-                    <select id="ai_budget_currency" name="budget_currency" style="padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; background:#fff; font-weight:700;">
-                      <option value="CLP" selected>CLP ($)</option>
-                      <option value="USD">USD ($)</option>
-                    </select>
-                    <input type="number" id="ai_daily_budget" name="daily_budget" value="15000" step="1000" style="flex:1; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; font-weight:700; color:#0f172a;" oninput="recalcBudgetEstimates();">
-                  </div>
-                </div>
-                <div>
-                  <label style="display:block; font-size:0.75rem; font-weight:700; color:#334155; margin-bottom:0.25rem;">Estrategia de Puja (Bidding):</label>
-                  <select id="ai_bidding_strategy" name="bidding_strategy" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; background:#fff; font-weight:600; color:#0f172a;" onchange="recalcBudgetEstimates();">
-                    <option value="MAX_CONVERSIONS" selected>Maximizar Conversiones (Recomendado)</option>
-                    <option value="MAX_CLICKS">Maximizar Clics (Tráfico)</option>
-                    <option value="TARGET_CPA">CPA Objetivo (Costo por Lead)</option>
-                  </select>
-                </div>
-                <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:0.5rem 0.75rem; display:flex; flex-direction:column; justify-content:center;">
-                  <span style="font-size:0.7rem; color:#64748b; font-weight:700; text-transform:uppercase;">Estimación Mensual:</span>
-                  <div style="font-size:0.85rem; font-weight:800; color:#003366;" id="txtBudgetEstimateSummary">
-                    $450.000 CLP/mes · ~300 a 450 Clics B2B
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <!-- Fila 3: Generación de Banner Visual -->
             <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1.25rem;">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
@@ -5107,45 +5630,6 @@ $scans_list = $db->query("
 
         // Generador con IA
         
-        function recalcBudgetEstimates() {
-          const cur = document.getElementById('ai_budget_currency') ? document.getElementById('ai_budget_currency').value : 'CLP';
-          const daily = parseFloat(document.getElementById('ai_daily_budget') ? document.getElementById('ai_daily_budget').value : 15000) || 0;
-          const monthly = daily * 30;
-          const txt = document.getElementById('txtBudgetEstimateSummary');
-          if (!txt) return;
-
-          if (cur === 'CLP') {
-            const minClicks = Math.round(monthly / 1400);
-            const maxClicks = Math.round(monthly / 950);
-            txt.innerHTML = `$${monthly.toLocaleString()} CLP/mes · ~${minClicks} a ${maxClicks} Clics B2B`;
-          } else {
-            const minClicks = Math.round(monthly / 1.5);
-            const maxClicks = Math.round(monthly / 0.9);
-            txt.innerHTML = `$${monthly.toLocaleString()} USD/mes · ~${minClicks} a ${maxClicks} Clics B2B`;
-          }
-        }
-
-        function switchGooglePreviewMode(mode) {
-          const box = document.getElementById('googleSerpBox');
-          const btnD = document.getElementById('btnPreviewDesktop');
-          const btnM = document.getElementById('btnPreviewMobile');
-          if (!box) return;
-
-          if (mode === 'mobile') {
-            box.style.maxWidth = '360px';
-            box.style.border = '2px solid #0284c7';
-            box.style.borderRadius = '16px';
-            if (btnM) { btnM.style.background = '#003366'; btnM.style.color = '#fff'; }
-            if (btnD) { btnD.style.background = '#f1f5f9'; btnD.style.color = '#475569'; }
-          } else {
-            box.style.maxWidth = '650px';
-            box.style.border = '1px solid #e8eaed';
-            box.style.borderRadius = '8px';
-            if (btnD) { btnD.style.background = '#003366'; btnD.style.color = '#fff'; }
-            if (btnM) { btnM.style.background = '#f1f5f9'; btnM.style.color = '#475569'; }
-          }
-        }
-
         function onTenantChanged(val) {
           const customBox = document.getElementById("boxCustomTenant");
           if (val === "custom") {
@@ -5775,108 +6259,16 @@ $scans_list = $db->query("
                 </div>
               `;
 
-              // SIMULADOR VISUAL GOOGLE ADS RSA (BÚSQUEDA)
-              if (cr.google_headlines && cr.google_descriptions) {
-                const h1 = cr.google_headlines[0] || 'Keystone Advisors';
-                const h2 = cr.google_headlines[1] || 'Consultoría & Soluciones';
-                const h3 = cr.google_headlines[2] || 'Sitio Oficial';
-                const d1 = cr.google_descriptions[0] || '';
-                const d2 = cr.google_descriptions[1] || '';
-                const currency = document.getElementById('ai_budget_currency') ? document.getElementById('ai_budget_currency').value : 'CLP';
-                const dailyB = document.getElementById('ai_daily_budget') ? document.getElementById('ai_daily_budget').value : '15000';
+              if (cr.google_headlines) {
+                html += `<div style="margin-bottom:1rem;"><strong>Titulares Google Ads (30 caracteres):</strong><ul style="margin:0.35rem 0 0 1.25rem;">`;
+                cr.google_headlines.forEach(h => { html += `<li><code>${h}</code></li>`; });
+                html += `</ul></div>`;
+              }
 
-                html += `
-                  <!-- Contenedor Simulador Google Ads -->
-                  <div style="background:#ffffff; border:2px solid #e2e8f0; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 4px 14px rgba(0,0,0,0.04);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:0.75rem; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
-                      <div>
-                        <h5 style="margin:0; font-size:1.05rem; font-weight:800; color:#003366; display:flex; align-items:center; gap:0.4rem;">
-                          <span>🔍</span> Simulador de Anuncio Google Search (RSA)
-                        </h5>
-                        <span style="font-size:0.75rem; color:#64748b;">Visualización idéntica a cómo verán los directivos y decisores tu anuncio en los resultados de búsqueda de Google.</span>
-                      </div>
-                      <div style="display:flex; gap:0.4rem;">
-                        <button type="button" onclick="switchGooglePreviewMode('desktop');" id="btnPreviewDesktop" style="background:#003366; color:#fff; border:none; padding:0.35rem 0.75rem; border-radius:4px; font-size:0.75rem; font-weight:700; cursor:pointer;">💻 Desktop</button>
-                        <button type="button" onclick="switchGooglePreviewMode('mobile');" id="btnPreviewMobile" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:0.35rem 0.75rem; border-radius:4px; font-size:0.75rem; font-weight:700; cursor:pointer;">📱 Móvil</button>
-                      </div>
-                    </div>
-
-                    <!-- Caja Simulador Google SERP -->
-                    <div id="googleSerpBox" style="background:#ffffff; border:1px solid #e8eaed; border-radius:8px; padding:1.25rem; font-family:arial,sans-serif; max-width:650px; margin-bottom:1rem;">
-                      <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.3rem;">
-                        <div style="width:26px; height:26px; border-radius:50%; background:#f1f3f4; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:800; color:#1a73e8;">KS</div>
-                        <div style="line-height:1.2;">
-                          <div style="font-size:0.85rem; color:#202124; font-weight:700;">Keystone Advisors Global</div>
-                          <div style="font-size:0.75rem; color:#4d5156;">https://www.keystoneadvisors.cl &gt; servicios</div>
-                        </div>
-                        <span style="margin-left:auto; font-size:0.7rem; font-weight:800; color:#202124; background:#f1f3f4; padding:0.15rem 0.4rem; border-radius:3px;">Patrocinado · Anuncio</span>
-                      </div>
-
-                      <!-- Título del Anuncio (Azul Google) -->
-                      <h3 id="googleAdHeadlinePreview" style="margin:0 0 0.4rem 0; font-size:1.25rem; line-height:1.3; font-weight:400; color:#1a0dab; cursor:pointer;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
-                        ${h1} | ${h2} | ${h3}
-                      </h3>
-
-                      <!-- Descripción del Anuncio -->
-                      <p id="googleAdDescPreview" style="margin:0; font-size:0.88rem; line-height:1.45; color:#4d5156;">
-                        ${d1} ${d2}
-                      </p>
-
-                      <!-- Extensiones de Enlace de Sitio (Sitelinks B2B) -->
-                      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-top:0.85rem; padding-top:0.75rem; border-top:1px dashed #e8eaed;">
-                        <div>
-                          <a href="#" style="color:#1a0dab; font-size:0.82rem; font-weight:700; text-decoration:none;">• Agendar Diagnóstico Senior</a>
-                          <div style="font-size:0.72rem; color:#5f6368;">Sesión ejecutiva de 30 minutos sin costo.</div>
-                        </div>
-                        <div>
-                          <a href="#" style="color:#1a0dab; font-size:0.82rem; font-weight:700; text-decoration:none;">• Casos de Éxito & Clientes</a>
-                          <div style="font-size:0.72rem; color:#5f6368;">Banca, retail y corporaciones regionales.</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Píldoras de Presupuesto y Estado de Campaña -->
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:0.75rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
-                      <div style="font-size:0.78rem; color:#475569;">
-                        💵 Pauta Asignada: <strong>${currency} $${Number(dailyB).toLocaleString()} / día</strong> · Cuenta ID: <code>396-771-8344</code>
-                      </div>
-                      <button type="button" onclick="alert('✓ Campaña de Búsqueda guardada como Borrador Técnico para sincronizar con Google Ads en cuanto se complete la autorización OAuth.');" style="background:#16a34a; color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:700; font-size:0.8rem; cursor:pointer;">
-                        💾 Guardar Borrador RSA
-                      </button>
-                    </div>
-
-                    <!-- Acordeón Desplegable de Todos los 15 Titulares y 4 Descripciones para afinar -->
-                    <details style="margin-top:1rem; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:0.6rem 0.85rem;">
-                      <summary style="font-weight:700; font-size:0.82rem; color:#003366; cursor:pointer;">
-                        📝 Ver y Seleccionar entre los 15 Titulares y 4 Descripciones Generadas (${cr.google_headlines.length} titulares disponibles)
-                      </summary>
-                      <div style="margin-top:0.75rem; display:grid; grid-template-columns:1.2fr 1fr; gap:1rem;">
-                        <div>
-                          <strong style="font-size:0.78rem; color:#334155; display:block; margin-bottom:0.35rem;">Titulares Generados (≤ 30 caracteres):</strong>
-                          <div style="display:flex; flex-direction:column; gap:0.35rem;">
-                            ${cr.google_headlines.map((h, i) => `
-                              <div style="display:flex; align-items:center; justify-content:space-between; background:#fff; border:1px solid #e2e8f0; padding:0.35rem 0.55rem; border-radius:4px; font-size:0.8rem;">
-                                <span>${h}</span>
-                                <span style="font-size:0.7rem; color:${h.length <= 30 ? '#16a34a' : '#ef4444'}; font-weight:800;">${h.length}/30</span>
-                              </div>
-                            `).join('')}
-                          </div>
-                        </div>
-                        <div>
-                          <strong style="font-size:0.78rem; color:#334155; display:block; margin-bottom:0.35rem;">Descripciones Generadas (≤ 90 caracteres):</strong>
-                          <div style="display:flex; flex-direction:column; gap:0.35rem;">
-                            ${cr.google_descriptions.map((d, i) => `
-                              <div style="background:#fff; border:1px solid #e2e8f0; padding:0.45rem; border-radius:4px; font-size:0.78rem; line-height:1.35;">
-                                <div>${d}</div>
-                                <div style="text-align:right; font-size:0.7rem; color:${d.length <= 90 ? '#16a34a' : '#ef4444'}; font-weight:800; margin-top:0.2rem;">${d.length}/90</div>
-                              </div>
-                            `).join('')}
-                          </div>
-                        </div>
-                      </div>
-                    </details>
-                  </div>
-                `;
+              if (cr.google_descriptions) {
+                html += `<div style="margin-bottom:1rem;"><strong>Descripciones Google Ads (90 caracteres):</strong><ul style="margin:0.35rem 0 0 1.25rem;">`;
+                cr.google_descriptions.forEach(d => { html += `<li>${d}</li>`; });
+                html += `</ul></div>`;
               }
 
               if (cr.linkedin_post) {
@@ -6053,15 +6445,15 @@ $scans_list = $db->query("
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
               <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">⚡ Groq Cloud LPU</span>
-              <span id="badge_groq" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.55rem; border-radius:99px; background:<?php echo $health['groq']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
-                <?php echo htmlspecialchars($health['groq']['status_es'] ?? ($health['groq']['status'] === 'ok' ? 'ACTIVO' : 'ERROR')); ?>
+              <span id="badge_groq" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['groq']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
+                <?php echo strtoupper($health['groq']['status']); ?>
               </span>
             </div>
             <div id="msg_groq" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
               <?php echo htmlspecialchars($health['groq']['message']); ?>
             </div>
             <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
-              Modelo: <code>qwen/qwen3.8-27b</code> (Redactor Principal)
+              Modelo: <code>qwen/qwen3.8-27b</code> (Tier 1 Copywriter)
             </div>
           </div>
 
@@ -6069,15 +6461,15 @@ $scans_list = $db->query("
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
               <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">🖼️ Cloudflare FLUX.1</span>
-              <span id="badge_cloudflare" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.55rem; border-radius:99px; background:<?php echo $health['cloudflare']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
-                <?php echo htmlspecialchars($health['cloudflare']['status_es'] ?? ($health['cloudflare']['status'] === 'ok' ? 'ACTIVO' : 'ERROR')); ?>
+              <span id="badge_cloudflare" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['cloudflare']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
+                <?php echo strtoupper($health['cloudflare']['status']); ?>
               </span>
             </div>
             <div id="msg_cloudflare" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
               <?php echo htmlspecialchars($health['cloudflare']['message']); ?>
             </div>
             <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
-              Motor: Workers AI Schnell (Banners 1024x1024 px)
+              Motor: Workers AI Schnell (1024x1024 px)
             </div>
           </div>
 
@@ -6085,8 +6477,8 @@ $scans_list = $db->query("
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
               <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">🧠 Google AI Studio</span>
-              <span id="badge_google_ai" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.55rem; border-radius:99px; background:<?php echo $health['google_ai']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : ($health['google_ai']['status'] === 'warning' ? '#fef3c7; color:#92400e;' : '#fee2e2; color:#b91c1c;'); ?>">
-                <?php echo htmlspecialchars($health['google_ai']['status_es'] ?? ($health['google_ai']['status'] === 'ok' ? 'ACTIVO' : ($health['google_ai']['status'] === 'warning' ? 'ATENCIÓN' : 'ERROR'))); ?>
+              <span id="badge_google_ai" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['google_ai']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : ($health['google_ai']['status'] === 'warning' ? '#fef3c7; color:#92400e;' : '#fee2e2; color:#b91c1c;'); ?>">
+                <?php echo strtoupper($health['google_ai']['status']); ?>
               </span>
             </div>
             <div id="msg_google_ai" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
@@ -6101,15 +6493,15 @@ $scans_list = $db->query("
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
               <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">💼 LinkedIn Empresa</span>
-              <span id="badge_linkedin" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.55rem; border-radius:99px; background:<?php echo $health['linkedin']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
-                <?php echo htmlspecialchars($health['linkedin']['status_es'] ?? ($health['linkedin']['status'] === 'ok' ? 'ACTIVO' : 'ERROR')); ?>
+              <span id="badge_linkedin" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['linkedin']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : '#fee2e2; color:#b91c1c;'; ?>">
+                <?php echo strtoupper($health['linkedin']['status']); ?>
               </span>
             </div>
             <div id="msg_linkedin" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
               <?php echo htmlspecialchars($health['linkedin']['message']); ?>
             </div>
             <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
-              ID de Organización: <code><?php echo htmlspecialchars($liOrgId); ?></code> (REST v202610)
+              Org ID: <code><?php echo htmlspecialchars($liOrgId); ?></code> (REST v202610)
             </div>
           </div>
 
@@ -6117,15 +6509,15 @@ $scans_list = $db->query("
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
               <span style="font-weight:800; font-size:0.85rem; color:#0f172a;">🔍 Google Ads</span>
-              <span id="badge_google_ads" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.55rem; border-radius:99px; background:<?php echo $health['google_ads']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : ($health['google_ads']['status'] === 'warning' ? '#fef3c7; color:#92400e;' : '#f1f5f9; color:#475569;'); ?>">
-                <?php echo htmlspecialchars($health['google_ads']['status_es'] ?? ($health['google_ads']['status'] === 'ok' ? 'ACTIVO' : ($health['google_ads']['status'] === 'warning' ? 'PENDIENTE' : 'INACTIVO'))); ?>
+              <span id="badge_google_ads" style="font-size:0.7rem; font-weight:800; padding:0.2rem 0.5rem; border-radius:99px; background:<?php echo $health['google_ads']['status'] === 'ok' ? '#dcfce7; color:#15803d;' : ($health['google_ads']['status'] === 'warning' ? '#fef3c7; color:#92400e;' : '#f1f5f9; color:#475569;'); ?>">
+                <?php echo strtoupper($health['google_ads']['status']); ?>
               </span>
             </div>
             <div id="msg_google_ads" style="font-size:0.78rem; color:#64748b; line-height:1.4;">
               <?php echo htmlspecialchars($health['google_ads']['message']); ?>
             </div>
             <div style="margin-top:0.6rem; font-size:0.72rem; color:#94a3b8;">
-              ID de Cliente: <code><?php echo htmlspecialchars($gCustId); ?></code>
+              Customer ID: <code><?php echo htmlspecialchars($gCustId); ?></code>
             </div>
           </div>
 
@@ -6265,17 +6657,13 @@ $scans_list = $db->query("
           const badge = document.getElementById("badge_" + id);
           const msg = document.getElementById("msg_" + id);
           if (badge) {
-            const labelEs = data.status_es || (data.status === "ok" ? "ACTIVO" : (data.status === "warning" ? "ATENCIÓN" : (data.status === "info" ? "INACTIVO" : "ERROR")));
-            badge.innerText = labelEs;
+            badge.innerText = data.status.toUpperCase();
             if (data.status === "ok") {
               badge.style.background = "#dcfce7";
               badge.style.color = "#15803d";
             } else if (data.status === "warning") {
               badge.style.background = "#fef3c7";
               badge.style.color = "#92400e";
-            } else if (data.status === "info") {
-              badge.style.background = "#f1f5f9";
-              badge.style.color = "#475569";
             } else {
               badge.style.background = "#fee2e2";
               badge.style.color = "#b91c1c";
@@ -7372,7 +7760,9 @@ $scans_list = $db->query("
           return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         }
 
-      </script>
+
+
+</script>
 
   </main>
 
