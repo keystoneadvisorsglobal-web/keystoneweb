@@ -1,10 +1,10 @@
 <?php
 /**
  * Keystone Advisors - Landing Especializada: KeyHub Suite SaaS
- * Ruta Oficial: /keyhub/ (https://keystoneadvisors.cl/keyhub/)
- * Solución SOL-0266 | Especialista SEO & SaaS
+ * Ruta Oficial: /keyhub-saas/ (https://keystoneadvisors.cl/keyhub-saas/)
+ * Solución SOL-0267 | Especialista SEO & SaaS
  */
-$page_title = "KeyHub Suite | Software de Control de Horas, Contratos & Kanban para Consultoras TI";
+$page_title = "KeyHub Suite SaaS | Software de Control de Horas, Contratos & Kanban para Consultoras TI";
 $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería. Control estricto de horas, contratos con firma digital, liquidación multidivisa y tableros Kanban.";
 ?>
 <!DOCTYPE html>
@@ -17,7 +17,7 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
   <meta name="keywords" content="software control horas consultoria chile, software gestion contratos ti, firma digital legal contratos, liquidacion honorarios multidivisa, tableros kanban consultoras, keyhub saas">
   <meta name="author" content="Keystone Advisors SpA">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-  <link rel="canonical" href="https://www.keystoneadvisors.cl/keyhub/">
+  <link rel="canonical" href="https://www.keystoneadvisors.cl/keyhub-saas/">
 
   <!-- Open Graph -->
   <meta property="og:locale" content="es_CL">
@@ -25,7 +25,7 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
   <meta property="og:site_name" content="Keystone Advisors">
   <meta property="og:title" content="<?php echo htmlspecialchars($page_title); ?>">
   <meta property="og:description" content="<?php echo htmlspecialchars($page_desc); ?>">
-  <meta property="og:url" content="https://www.keystoneadvisors.cl/keyhub/">
+  <meta property="og:url" content="https://www.keystoneadvisors.cl/keyhub-saas/">
   <meta property="og:image" content="https://www.keystoneadvisors.cl/assets/images/logo.png?v=20261107_01">
 
   <!-- Schema.org JSON-LD -->
@@ -132,7 +132,7 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
           <li><a href="../">Inicio</a></li>
           <li><a href="../salesforce-fsc/">Salesforce FSC</a></li>
           <li><a href="../ciberseguridad-bec/">Ciberseguridad & DMARC</a></li>
-          <li><a href="../keyhub/" style="color:#10b981; font-weight:800;">KeyHub SaaS</a></li>
+          <li><a href="../keyhub-saas/" style="color:#10b981; font-weight:800;">KeyHub SaaS</a></li>
           <li><a href="../trust/">Trust Center</a></li>
           <li><a href="https://keyhub.keystoneadvisors.cl/" target="_blank" class="btn-primary" style="padding:0.45rem 1rem; border-radius:6px; font-size:0.85rem;">Acceso a KeyHub ↗</a></li>
         </ul>
@@ -243,7 +243,7 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
         <ul class="footer-links">
           <li><a href="../salesforce-fsc/">Salesforce FSC & Banca</a></li>
           <li><a href="../ciberseguridad-bec/">Ciberseguridad & DMARC</a></li>
-          <li><a href="../keyhub/">KeyHub Operations Suite</a></li>
+          <li><a href="../keyhub-saas/">KeyHub Operations Suite</a></li>
           <li><a href="../desarrollo-offshore/">Desarrollo Offshore</a></li>
         </ul>
       </div>
@@ -274,4 +274,3 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
 
 </body>
 </html>
-
