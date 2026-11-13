@@ -158,7 +158,7 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
   <header class="header">
     <div class="header-container">
       <a href="#" class="brand">
-        <img src="assets/images/logo.png?v=20261107_01" alt="Keystone Advisors Logo">
+        <img src="assets/images/logo.png?v=20261107_01" alt="Keystone Advisors Logo" width="1024" height="288" fetchpriority="high">
       </a>
       <!-- Boton hamburguesa para móviles -->
       <button class="nav-toggle-btn" id="navToggleBtn" aria-label="Abrir Menú de Navegación">
@@ -1269,19 +1269,19 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
         
         <!-- Salesforce Partner -->
         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1.5rem; width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:120px; transition:var(--transition); box-shadow:var(--shadow-sm);">
-          <img src="assets/images/salesforce-partner.png" alt="Salesforce Partner" style="height:55px; max-width:180px; object-fit:contain;">
+          <img src="assets/images/salesforce-partner.png" alt="Salesforce Partner" width="1200" height="840" loading="lazy" decoding="async" style="height:55px; max-width:180px; object-fit:contain;">
           <span style="font-size:0.78rem; font-weight:700; color:#006699; margin-top:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Socio Certificado Oficial</span>
         </div>
 
         <!-- Inmotion República Dominicana -->
         <a href="https://inmotion.com.do/" target="_blank" rel="noopener noreferrer" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1.5rem; width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:120px; transition:var(--transition); box-shadow:var(--shadow-sm);" class="partner-card-link">
-          <img src="assets/images/logo-inmotion.png" alt="Inmotion República Dominicana" style="height:48px; max-width:180px; object-fit:contain;">
+          <img src="assets/images/logo-inmotion.png" alt="Inmotion República Dominicana" width="288" height="57" loading="lazy" decoding="async" style="height:48px; max-width:180px; object-fit:contain;">
           <span style="font-size:0.78rem; font-weight:700; color:#003366; margin-top:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Alianza Caribe & Rep. Dominicana ↗</span>
         </a>
 
         <!-- Surges Capacitaciones Chile -->
         <a href="https://surgescapacitaciones.cl/" target="_blank" rel="noopener noreferrer" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1.5rem; width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:120px; transition:var(--transition); box-shadow:var(--shadow-sm);" class="partner-card-link">
-          <img src="assets/images/logo-surges.png" alt="Surges Capacitaciones" style="height:48px; max-width:190px; object-fit:contain;">
+          <img src="assets/images/logo-surges.png" alt="Surges Capacitaciones" width="564" height="105" loading="lazy" decoding="async" style="height:48px; max-width:190px; object-fit:contain;">
           <span style="font-size:0.78rem; font-weight:700; color:#003366; margin-top:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">Alianza Formación & SENCE ↗</span>
         </a>
 
@@ -1332,7 +1332,7 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
   <footer class="footer">
     <div class="footer-container">
       <div class="footer-brand">
-        <img src="assets/images/logo-keystone-white.png?v=20261107_01" alt="Keystone Advisors" style="height:48px; max-width:200px; object-fit:contain; margin-bottom:1rem;">
+        <img src="assets/images/logo-keystone-white.png?v=20261107_01" alt="Keystone Advisors" width="1024" height="288" loading="lazy" decoding="async" style="height:48px; max-width:200px; object-fit:contain; margin-bottom:1rem;">
         <p>Firma líder de consultoría estratégica y desarrollo tecnológico especializada en Salesforce CRM, Salesforce Agentforce, ERPs y soluciones Cloud avanzadas.</p>
       </div>
       <div class="footer-col">
@@ -1369,7 +1369,7 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
       <div>&copy; <?php echo date('Y'); ?> Keystone Advisors SpA. Todos los derechos reservados.</div>
       <div style="display:flex; align-items:center; gap:0.75rem;">
         <a href="/trust/" title="Ver Telemetría en Tiempo Real de TrustZero">
-          <img src="/api/trust/badge.php?domain=keystoneadvisors.cl" alt="TrustZero Verified" style="height:26px; border-radius:4px; vertical-align:middle;">
+          <img src="/api/trust/badge.php?domain=keystoneadvisors.cl" alt="TrustZero Verified" width="130" height="26" loading="lazy" decoding="async" style="height:26px; border-radius:4px; vertical-align:middle;">
         </a>
         <span>Plataforma Global Corporativa & Ciberdefensa</span>
       </div>
