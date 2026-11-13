@@ -231,7 +231,7 @@ $page_desc = "Consultoría certificada en Salesforce Financial Services Cloud (F
           <li><a href="../">Inicio</a></li>
           <li><a href="../salesforce-fsc/" style="color:#00b4d8; font-weight:800;">Salesforce FSC</a></li>
           <li><a href="../ciberseguridad-bec/">Ciberseguridad & DMARC</a></li>
-          <li><a href="../keyhub/">KeyHub SaaS</a></li>
+          
           <li><a href="../trust/">Trust Center</a></li>
           <li><a href="#contacto" class="btn-primary" style="padding:0.45rem 1rem; border-radius:6px; font-size:0.85rem;">Hablar con un Asesor</a></li>
         </ul>
@@ -391,7 +391,7 @@ $page_desc = "Consultoría certificada en Salesforce Financial Services Cloud (F
         <ul class="footer-links">
           <li><a href="../salesforce-fsc/">Salesforce FSC & Banca</a></li>
           <li><a href="../ciberseguridad-bec/">Ciberseguridad & DMARC</a></li>
-          <li><a href="../keyhub/">KeyHub Operations Suite</a></li>
+          <li><a href="../#keyhub">KeyHub Suite</a></li>
           <li><a href="../desarrollo-offshore/">Desarrollo Offshore</a></li>
         </ul>
       </div>

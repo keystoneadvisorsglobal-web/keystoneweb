@@ -132,7 +132,7 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
           <li><a href="../">Inicio</a></li>
           <li><a href="../salesforce-fsc/">Salesforce FSC</a></li>
           <li><a href="../ciberseguridad-bec/">Ciberseguridad & DMARC</a></li>
-          <li><a href="../keyhub-saas/" style="color:#10b981; font-weight:800;">KeyHub SaaS</a></li>
+          
           <li><a href="../trust/">Trust Center</a></li>
           <li><a href="../#contacto" class="btn-primary" style="padding:0.45rem 1rem; border-radius:6px; font-size:0.85rem;">Solicitar Demo</a></li>
         </ul>
@@ -243,7 +243,7 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
         <ul class="footer-links">
           <li><a href="../salesforce-fsc/">Salesforce FSC & Banca</a></li>
           <li><a href="../ciberseguridad-bec/">Ciberseguridad & DMARC</a></li>
-          <li><a href="../keyhub-saas/">KeyHub Operations Suite</a></li>
+          <li><a href="../#keyhub">KeyHub Suite</a></li>
           <li><a href="../desarrollo-offshore/">Desarrollo Offshore</a></li>
         </ul>
       </div>
