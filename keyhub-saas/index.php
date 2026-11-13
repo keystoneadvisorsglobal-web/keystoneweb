@@ -134,7 +134,7 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
           <li><a href="../ciberseguridad-bec/">Ciberseguridad & DMARC</a></li>
           <li><a href="../keyhub-saas/" style="color:#10b981; font-weight:800;">KeyHub SaaS</a></li>
           <li><a href="../trust/">Trust Center</a></li>
-          <li><a href="https://keyhub.keystoneadvisors.cl/" target="_blank" class="btn-primary" style="padding:0.45rem 1rem; border-radius:6px; font-size:0.85rem;">Acceso a KeyHub ↗</a></li>
+          <li><a href="../#contacto" class="btn-primary" style="padding:0.45rem 1rem; border-radius:6px; font-size:0.85rem;">Solicitar Demo</a></li>
         </ul>
       </nav>
     </div>
@@ -148,8 +148,8 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
       <p>Maximice la rentabilidad de sus proyectos. Unifique el registro forense de horas, contratos con firma digital legal y tableros Kanban en una sola plataforma en la nube.</p>
       
       <div style="display:flex; justify-content:center; gap:1rem; flex-wrap:wrap;">
-        <a href="https://keyhub.keystoneadvisors.cl/" target="_blank" class="btn-kh-primary">Ingresar a KeyHub v1.0</a>
-        <a href="#contacto" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.25); color:#fff; padding:0.85rem 1.75rem; border-radius:8px; text-decoration:none; font-weight:700;">Agendar Demostración para su Empresa</a>
+        <a href="#contacto" class="btn-kh-primary">Solicitar Demostración Guiada</a>
+        <a href="https://wa.me/56930640431?text=Hola,%20quisiera%20agendar%20demo%20de%20KeyHub" target="_blank" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.25); color:#fff; padding:0.85rem 1.75rem; border-radius:8px; text-decoration:none; font-weight:700;">WhatsApp Directo: +56 9 3064 0431</a>
       </div>
     </div>
   </section>
