@@ -1,10 +1,10 @@
 <?php
 /**
  * Keystone Advisors - Sitio Corporativo Principal (Producción Oficial)
- * Apertura Pública - Solución SOL-0254
+ * Apertura Pública & Optimización SEO - Solución SOL-0260
  */
-$page_title = "Keystone Advisors | Transformación Digital, Salesforce, SAP & Soluciones Cloud";
-$page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquitecturas Cloud con presencia en Chile, Perú, Panamá, República Dominicana y Canadá.";
+$page_title = "Keystone Advisors | Salesforce Partner FSC & Ciberseguridad IA";
+$page_desc = "Consultoría líder en Salesforce FSC, Agentforce y Ciberseguridad Ofensiva en Chile, Perú, Panamá y RD. Protegemos y aceleramos su operación.";
 ?><!DOCTYPE html>
 <html lang="es">
 <head>
@@ -122,6 +122,44 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
         "publisher": {
           "@id": "https://www.keystoneadvisors.cl/#organization"
         }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://www.keystoneadvisors.cl/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "¿Qué valor diferencial aporta Keystone Advisors en consultoría Salesforce FSC?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Somos especialistas de élite en Salesforce Financial Services Cloud (FSC) y Agentforce en Chile, República Dominicana y la región, con aceleradores propios, blindaje de gobierno de datos y automatización de procesos financieros complejos."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Cómo protege el diagnóstico DMARC y la radiografía de ciberseguridad contra el fraude del CEO (BEC)?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Evaluamos en tiempo real la configuración SPF, DKIM y DMARC de su dominio corporativo para evitar la suplantación de identidad (spoofing) y realizamos pruebas de Red Teaming asistidas por IA para blindar la cadena de pagos y tesorería."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Qué es KeyHub Suite y cómo optimiza la rentabilidad en consultoras de TI?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "KeyHub es la plataforma SaaS integral desarrollada por Keystone Advisors que unifica tableros Kanban, control estricto de horas y honorarios multidivisa, cadena de custodia legal con firma digital y gobernanza activa de código para proyectos de tecnología."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Dónde tiene presencia física y operativa Keystone Advisors?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Keystone Advisors opera de forma activa con sedes y consultores en Chile (Santiago - Las Condes), Perú (Lima), Panamá (Ciudad de Panamá), República Dominicana (Santo Domingo) y Canadá (Edmonton), brindando servicios en sitio y remotos."
+            }
+          }
+        ]
       }
     ]
   }
@@ -1303,7 +1341,7 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
         <h2 class="section-title">Hablemos sobre su Próximo Desafío</h2>
         <p class="section-desc">Atendemos clientes en toda América y el Caribe con soporte en sitio y remoto.</p>
       </div>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:1.5rem; text-align:center;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:1.5rem; text-align:center; margin-bottom:3.5rem;">
         <div style="background:#fff; padding:1.75rem; border-radius:12px; border:1px solid #e2e8f0;">
           <h4 style="color:#003366; margin-bottom:0.5rem;">🇨🇱 Chile</h4>
           <p style="font-size:0.88rem; color:#64748b;">Av. Apoquindo 6410, Of. 605, Las Condes, Santiago</p>
@@ -1325,6 +1363,32 @@ $page_desc = "Consultoría de élite en Salesforce CRM, Agentforce, SAP y arquit
           <p style="font-weight:700; color:#006699; margin-top:0.5rem;">+56 9 7971 9857</p>
         </div>
       </div>
+
+      <!-- Sección de Preguntas Frecuentes (FAQ / Rich Snippets) -->
+      <div style="max-width:850px; margin:0 auto; text-align:left;">
+        <h3 style="font-size:1.35rem; font-weight:800; color:#003366; margin-bottom:1.5rem; text-align:center;">Preguntas Frecuentes sobre Nuestros Servicios</h3>
+        
+        <details style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:1.15rem 1.25rem; margin-bottom:1rem; cursor:pointer;" open>
+          <summary style="font-weight:700; color:#003366; font-size:1rem; outline:none;">¿Qué valor diferencial aporta Keystone Advisors en consultoría Salesforce FSC?</summary>
+          <p style="margin-top:0.75rem; font-size:0.92rem; color:#475569; line-height:1.6;">Somos especialistas de élite en Salesforce Financial Services Cloud (FSC) y Agentforce en Chile, República Dominicana y la región, con aceleradores propios, blindaje de gobierno de datos y automatización de procesos financieros complejos.</p>
+        </details>
+
+        <details style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:1.15rem 1.25rem; margin-bottom:1rem; cursor:pointer;">
+          <summary style="font-weight:700; color:#003366; font-size:1rem; outline:none;">¿Cómo protege el diagnóstico DMARC y la radiografía de ciberseguridad contra el fraude del CEO (BEC)?</summary>
+          <p style="margin-top:0.75rem; font-size:0.92rem; color:#475569; line-height:1.6;">Evaluamos en tiempo real la configuración SPF, DKIM y DMARC de su dominio corporativo para evitar la suplantación de identidad (spoofing) y realizamos pruebas de Red Teaming asistidas por IA para blindar la cadena de pagos y tesorería.</p>
+        </details>
+
+        <details style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:1.15rem 1.25rem; margin-bottom:1rem; cursor:pointer;">
+          <summary style="font-weight:700; color:#003366; font-size:1rem; outline:none;">¿Qué es KeyHub Suite y cómo optimiza la rentabilidad en consultoras de TI?</summary>
+          <p style="margin-top:0.75rem; font-size:0.92rem; color:#475569; line-height:1.6;">KeyHub es la plataforma SaaS integral desarrollada por Keystone Advisors que unifica tableros Kanban, control estricto de horas y honorarios multidivisa, cadena de custodia legal con firma digital y gobernanza activa de código para proyectos de tecnología.</p>
+        </details>
+
+        <details style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:1.15rem 1.25rem; margin-bottom:1rem; cursor:pointer;">
+          <summary style="font-weight:700; color:#003366; font-size:1rem; outline:none;">¿Dónde tiene presencia física y operativa Keystone Advisors?</summary>
+          <p style="margin-top:0.75rem; font-size:0.92rem; color:#475569; line-height:1.6;">Keystone Advisors opera de forma activa con sedes y consultores en Chile (Santiago - Las Condes), Perú (Lima), Panamá (Ciudad de Panamá), República Dominicana (Santo Domingo) y Canadá (Edmonton), brindando servicios en sitio y remotos.</p>
+        </details>
+      </div>
+
     </div>
   </section>
 
