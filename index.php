@@ -49,7 +49,7 @@ $page_desc = "Consultoría líder en Salesforce FSC, Agentforce y Ciberseguridad
           "caption": "Keystone Advisors Logo"
         },
         "description": "Firma internacional de consultoría especializada en Ciberseguridad IA, Consultoría Salesforce FSC, Transformación Cloud y la Suite SaaS KeyHub.",
-        "telephone": "+56 9 7971 9857",
+        "telephone": "+56 9 3064 0431",
         "email": "contacto@keystoneadvisors.cl",
         "address": {
           "@type": "PostalAddress",
@@ -1345,7 +1345,7 @@ $page_desc = "Consultoría líder en Salesforce FSC, Agentforce y Ciberseguridad
         <div style="background:#fff; padding:1.75rem; border-radius:12px; border:1px solid #e2e8f0;">
           <h4 style="color:#003366; margin-bottom:0.5rem;">🇨🇱 Chile</h4>
           <p style="font-size:0.88rem; color:#64748b;">Av. Apoquindo 6410, Of. 605, Las Condes, Santiago</p>
-          <p style="font-weight:700; color:#006699; margin-top:0.5rem;">+56 9 7971 9857</p>
+          <p style="font-weight:700; color:#006699; margin-top:0.5rem;">+56 9 3064 0431</p>
         </div>
         <div style="background:#fff; padding:1.75rem; border-radius:12px; border:1px solid #e2e8f0;">
           <h4 style="color:#003366; margin-bottom:0.5rem;">🇵🇪 Perú</h4>
@@ -1360,7 +1360,7 @@ $page_desc = "Consultoría líder en Salesforce FSC, Agentforce y Ciberseguridad
         <div style="background:#fff; padding:1.75rem; border-radius:12px; border:1px solid #e2e8f0;">
           <h4 style="color:#003366; margin-bottom:0.5rem;">🇨🇦 Canadá</h4>
           <p style="font-size:0.88rem; color:#64748b;">1150 Windermere Way, Edmonton, AB</p>
-          <p style="font-weight:700; color:#006699; margin-top:0.5rem;">+56 9 7971 9857</p>
+          <p style="font-weight:700; color:#006699; margin-top:0.5rem;">+56 9 3064 0431</p>
         </div>
       </div>
 
@@ -1423,7 +1423,7 @@ $page_desc = "Consultoría líder en Salesforce FSC, Agentforce y Ciberseguridad
       <div class="footer-col">
         <h4>Contacto Directo</h4>
         <ul class="footer-links">
-          <li><a href="https://wa.me/56979719857" target="_blank">WhatsApp Chile</a></li>
+          <li><a href="https://wa.me/56930640431" target="_blank">WhatsApp Chile</a></li>
           <li><a href="https://wa.me/51950123182" target="_blank">WhatsApp Perú</a></li>
           <li><a href="mailto:contacto@keystoneadvisors.cl">contacto@keystoneadvisors.cl</a></li>
         </ul>
