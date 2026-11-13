@@ -17,7 +17,7 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
   <meta name="keywords" content="software control horas consultoria chile, software gestion contratos ti, firma digital legal contratos, liquidacion honorarios multidivisa, tableros kanban consultoras, keyhub saas">
   <meta name="author" content="Keystone Advisors SpA">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-  <link rel="canonical" href="https://www.keystoneadvisors.cl/keyhub-saas/">
+  <link rel="canonical" href="https://keystoneadvisors.cl/keyhub-saas/">
 
   <!-- Open Graph -->
   <meta property="og:locale" content="es_CL">
@@ -25,8 +25,8 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
   <meta property="og:site_name" content="Keystone Advisors">
   <meta property="og:title" content="<?php echo htmlspecialchars($page_title); ?>">
   <meta property="og:description" content="<?php echo htmlspecialchars($page_desc); ?>">
-  <meta property="og:url" content="https://www.keystoneadvisors.cl/keyhub-saas/">
-  <meta property="og:image" content="https://www.keystoneadvisors.cl/assets/images/logo.png?v=20261107_01">
+  <meta property="og:url" content="https://keystoneadvisors.cl/keyhub-saas/">
+  <meta property="og:image" content="https://keystoneadvisors.cl/assets/images/logo.png?v=20261107_01">
 
   <!-- Schema.org JSON-LD -->
   <script type="application/ld+json">
@@ -46,7 +46,7 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
     "publisher": {
       "@type": "Organization",
       "name": "Keystone Advisors SpA",
-      "url": "https://www.keystoneadvisors.cl/"
+      "url": "https://keystoneadvisors.cl/"
     }
   }
   </script>

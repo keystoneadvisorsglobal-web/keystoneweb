@@ -15,7 +15,7 @@ $page_desc = "Consultoría líder en Salesforce FSC, Agentforce y Ciberseguridad
   <meta name="keywords" content="ciberseguridad chile, consultoria salesforce santiago, escaner dmarc gratuito, keyhub saas, blindaje tesoreria bec, auditoria forense horas ti, partner salesforce fsc">
   <meta name="author" content="Keystone Advisors SpA">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-  <link rel="canonical" href="https://www.keystoneadvisors.cl/">
+  <link rel="canonical" href="https://keystoneadvisors.cl/">
 
   <!-- Open Graph Protocol (LinkedIn, WhatsApp, Facebook) -->
   <meta property="og:locale" content="es_CL">
@@ -23,15 +23,15 @@ $page_desc = "Consultoría líder en Salesforce FSC, Agentforce y Ciberseguridad
   <meta property="og:site_name" content="Keystone Advisors">
   <meta property="og:title" content="Keystone Advisors | Ciberseguridad Ofensiva, Salesforce FSC & KeyHub SaaS">
   <meta property="og:description" content="Protegemos su operación con IA: auditoría de exposición digital, consultoría de élite Salesforce FSC y la suite de control de horas y contratos KeyHub.">
-  <meta property="og:url" content="https://www.keystoneadvisors.cl/">
-  <meta property="og:image" content="https://www.keystoneadvisors.cl/assets/images/logo.png?v=20261107_01">
+  <meta property="og:url" content="https://keystoneadvisors.cl/">
+  <meta property="og:image" content="https://keystoneadvisors.cl/assets/images/logo.png?v=20261107_01">
   <meta property="og:image:alt" content="Keystone Advisors - Consultoría Tecnológica & Ciberseguridad">
 
   <!-- Twitter Cards -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Keystone Advisors | Ciberseguridad, Salesforce & KeyHub">
   <meta name="twitter:description" content="Evaluación de vulnerabilidades DMARC y SPF gratuita en 30 segundos. Consultoría especializada en Salesforce y arquitectura cloud.">
-  <meta name="twitter:image" content="https://www.keystoneadvisors.cl/assets/images/logo.png?v=20261107_01">
+  <meta name="twitter:image" content="https://keystoneadvisors.cl/assets/images/logo.png?v=20261107_01">
 
   <!-- Metadatos Estructurados JSON-LD (Schema.org) -->
   <script type="application/ld+json">
@@ -40,12 +40,12 @@ $page_desc = "Consultoría líder en Salesforce FSC, Agentforce y Ciberseguridad
     "@graph": [
       {
         "@type": "Organization",
-        "@id": "https://www.keystoneadvisors.cl/#organization",
+        "@id": "https://keystoneadvisors.cl/#organization",
         "name": "Keystone Advisors SpA",
-        "url": "https://www.keystoneadvisors.cl/",
+        "url": "https://keystoneadvisors.cl/",
         "logo": {
           "@type": "ImageObject",
-          "url": "https://www.keystoneadvisors.cl/assets/images/logo.png",
+          "url": "https://keystoneadvisors.cl/assets/images/logo.png",
           "caption": "Keystone Advisors Logo"
         },
         "description": "Firma internacional de consultoría especializada en Ciberseguridad IA, Consultoría Salesforce FSC, Transformación Cloud y la Suite SaaS KeyHub.",
@@ -62,11 +62,11 @@ $page_desc = "Consultoría líder en Salesforce FSC, Agentforce y Ciberseguridad
       },
       {
         "@type": "ProfessionalService",
-        "@id": "https://www.keystoneadvisors.cl/#service",
+        "@id": "https://keystoneadvisors.cl/#service",
         "name": "Keystone Advisors - Consultoría TI & Ciberseguridad",
-        "url": "https://www.keystoneadvisors.cl/",
+        "url": "https://keystoneadvisors.cl/",
         "parentOrganization": {
-          "@id": "https://www.keystoneadvisors.cl/#organization"
+          "@id": "https://keystoneadvisors.cl/#organization"
         },
         "priceRange": "$$$$",
         "areaServed": [
@@ -116,16 +116,16 @@ $page_desc = "Consultoría líder en Salesforce FSC, Agentforce y Ciberseguridad
       },
       {
         "@type": "WebSite",
-        "@id": "https://www.keystoneadvisors.cl/#website",
-        "url": "https://www.keystoneadvisors.cl/",
+        "@id": "https://keystoneadvisors.cl/#website",
+        "url": "https://keystoneadvisors.cl/",
         "name": "Keystone Advisors",
         "publisher": {
-          "@id": "https://www.keystoneadvisors.cl/#organization"
+          "@id": "https://keystoneadvisors.cl/#organization"
         }
       },
       {
         "@type": "FAQPage",
-        "@id": "https://www.keystoneadvisors.cl/#faq",
+        "@id": "https://keystoneadvisors.cl/#faq",
         "mainEntity": [
           {
             "@type": "Question",

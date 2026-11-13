@@ -6,7 +6,7 @@
 
   <!-- 1. Página Principal (Home) -->
   <url>
-    <loc>https://www.keystoneadvisors.cl/</loc>
+    <loc>https://keystoneadvisors.cl/</loc>
     <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
@@ -14,7 +14,7 @@
 
   <!-- 2. Salesforce Financial Services Cloud (FSC) & Agentforce -->
   <url>
-    <loc>https://www.keystoneadvisors.cl/salesforce-fsc/</loc>
+    <loc>https://keystoneadvisors.cl/salesforce-fsc/</loc>
     <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.95</priority>
@@ -22,7 +22,7 @@
 
   <!-- 3. Ciberseguridad Ofensiva & Blindaje Fraude del CEO (BEC) / DMARC -->
   <url>
-    <loc>https://www.keystoneadvisors.cl/ciberseguridad-bec/</loc>
+    <loc>https://keystoneadvisors.cl/ciberseguridad-bec/</loc>
     <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.90</priority>
@@ -30,7 +30,7 @@
 
   <!-- 4. KeyHub Suite (SaaS para Gestión de Horas, Contratos & Kanban) -->
   <url>
-    <loc>https://www.keystoneadvisors.cl/keyhub-saas/</loc>
+    <loc>https://keystoneadvisors.cl/keyhub-saas/</loc>
     <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
@@ -38,7 +38,7 @@
 
   <!-- 5. Fábrica de Software Offshore / Nearshore & Staff Augmentation -->
   <url>
-    <loc>https://www.keystoneadvisors.cl/desarrollo-offshore/</loc>
+    <loc>https://keystoneadvisors.cl/desarrollo-offshore/</loc>
     <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
@@ -46,7 +46,7 @@
 
   <!-- 6. Portal Trust Center (Seguridad, Cifrado & Telemetría Pública) -->
   <url>
-    <loc>https://www.keystoneadvisors.cl/trust/</loc>
+    <loc>https://keystoneadvisors.cl/trust/</loc>
     <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>

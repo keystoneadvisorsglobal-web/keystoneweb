@@ -17,7 +17,7 @@ $page_desc = "Protegemos a empresas y tesorerías contra el Fraude del CEO (BEC)
   <meta name="keywords" content="fraude del ceo chile, ciberseguridad chile, auditoria dmarc santiago, proteccion bec tesoreria, red teaming ia, escaner dmarc gratuito, suplantacion correo corporativo">
   <meta name="author" content="Keystone Advisors SpA">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-  <link rel="canonical" href="https://www.keystoneadvisors.cl/ciberseguridad-bec/">
+  <link rel="canonical" href="https://keystoneadvisors.cl/ciberseguridad-bec/">
 
   <!-- Open Graph -->
   <meta property="og:locale" content="es_CL">
@@ -25,8 +25,8 @@ $page_desc = "Protegemos a empresas y tesorerías contra el Fraude del CEO (BEC)
   <meta property="og:site_name" content="Keystone Advisors">
   <meta property="og:title" content="<?php echo htmlspecialchars($page_title); ?>">
   <meta property="og:description" content="<?php echo htmlspecialchars($page_desc); ?>">
-  <meta property="og:url" content="https://www.keystoneadvisors.cl/ciberseguridad-bec/">
-  <meta property="og:image" content="https://www.keystoneadvisors.cl/assets/images/logo.png?v=20261107_01">
+  <meta property="og:url" content="https://keystoneadvisors.cl/ciberseguridad-bec/">
+  <meta property="og:image" content="https://keystoneadvisors.cl/assets/images/logo.png?v=20261107_01">
 
   <!-- Schema.org JSON-LD -->
   <script type="application/ld+json">
@@ -35,13 +35,13 @@ $page_desc = "Protegemos a empresas y tesorerías contra el Fraude del CEO (BEC)
     "@graph": [
       {
         "@type": "Service",
-        "@id": "https://www.keystoneadvisors.cl/ciberseguridad-bec/#service",
+        "@id": "https://keystoneadvisors.cl/ciberseguridad-bec/#service",
         "name": "Blindaje contra Fraude del CEO (BEC) & Auditoría DMARC",
         "serviceType": "Ciberseguridad Ofensiva y Protección de Tesorería",
         "provider": {
           "@type": "Organization",
           "name": "Keystone Advisors SpA",
-          "url": "https://www.keystoneadvisors.cl/",
+          "url": "https://keystoneadvisors.cl/",
           "telephone": "+56 9 3064 0431",
           "address": {
             "@type": "PostalAddress",
@@ -55,7 +55,7 @@ $page_desc = "Protegemos a empresas y tesorerías contra el Fraude del CEO (BEC)
       },
       {
         "@type": "FAQPage",
-        "@id": "https://www.keystoneadvisors.cl/ciberseguridad-bec/#faq",
+        "@id": "https://keystoneadvisors.cl/ciberseguridad-bec/#faq",
         "mainEntity": [
           {
             "@type": "Question",

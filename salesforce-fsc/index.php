@@ -17,7 +17,7 @@ $page_desc = "Consultoría certificada en Salesforce Financial Services Cloud (F
   <meta name="keywords" content="consultoria salesforce chile, partner salesforce fsc santiago, implementacion financial services cloud, salesforce banca seguros, agentforce bancario, salesforce omistudio pyme">
   <meta name="author" content="Keystone Advisors SpA">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-  <link rel="canonical" href="https://www.keystoneadvisors.cl/salesforce-fsc/">
+  <link rel="canonical" href="https://keystoneadvisors.cl/salesforce-fsc/">
 
   <!-- Open Graph -->
   <meta property="og:locale" content="es_CL">
@@ -25,8 +25,8 @@ $page_desc = "Consultoría certificada en Salesforce Financial Services Cloud (F
   <meta property="og:site_name" content="Keystone Advisors">
   <meta property="og:title" content="<?php echo htmlspecialchars($page_title); ?>">
   <meta property="og:description" content="<?php echo htmlspecialchars($page_desc); ?>">
-  <meta property="og:url" content="https://www.keystoneadvisors.cl/salesforce-fsc/">
-  <meta property="og:image" content="https://www.keystoneadvisors.cl/assets/images/salesforce-partner.png">
+  <meta property="og:url" content="https://keystoneadvisors.cl/salesforce-fsc/">
+  <meta property="og:image" content="https://keystoneadvisors.cl/assets/images/salesforce-partner.png">
 
   <!-- Schema.org JSON-LD -->
   <script type="application/ld+json">
@@ -35,13 +35,13 @@ $page_desc = "Consultoría certificada en Salesforce Financial Services Cloud (F
     "@graph": [
       {
         "@type": "Service",
-        "@id": "https://www.keystoneadvisors.cl/salesforce-fsc/#service",
+        "@id": "https://keystoneadvisors.cl/salesforce-fsc/#service",
         "name": "Consultoría e Implementación Salesforce Financial Services Cloud (FSC)",
         "serviceType": "Consultoría Salesforce Bancaria y Seguros",
         "provider": {
           "@type": "Organization",
           "name": "Keystone Advisors SpA",
-          "url": "https://www.keystoneadvisors.cl/",
+          "url": "https://keystoneadvisors.cl/",
           "telephone": "+56 9 3064 0431",
           "address": {
             "@type": "PostalAddress",
@@ -56,7 +56,7 @@ $page_desc = "Consultoría certificada en Salesforce Financial Services Cloud (F
       },
       {
         "@type": "FAQPage",
-        "@id": "https://www.keystoneadvisors.cl/salesforce-fsc/#faq",
+        "@id": "https://keystoneadvisors.cl/salesforce-fsc/#faq",
         "mainEntity": [
           {
             "@type": "Question",
