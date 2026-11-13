@@ -121,22 +121,68 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
 </head>
 <body>
 
-  <!-- Header -->
+    <!-- Navigation Header -->
   <header class="header">
     <div class="header-container">
       <a href="../" class="brand">
         <img src="../assets/images/logo.png?v=20261107_01" alt="Keystone Advisors Logo" width="1024" height="288" fetchpriority="high">
       </a>
-      <nav>
-        <ul class="nav-links">
-          <li><a href="../">Inicio</a></li>
-          <li><a href="../salesforce-fsc/">Salesforce FSC</a></li>
-          <li><a href="../ciberseguridad-bec/">Ciberseguridad & DMARC</a></li>
-          
-          <li><a href="../trust/">Trust Center</a></li>
-          <li><a href="../#contacto" class="btn-primary" style="padding:0.45rem 1rem; border-radius:6px; font-size:0.85rem;">Solicitar Demo</a></li>
-        </ul>
-      </nav>
+      <!-- Boton hamburguesa para móviles -->
+      <button class="nav-toggle-btn" id="navToggleBtn" aria-label="Abrir Menú de Navegación">
+        ☰
+      </button>
+
+      <div class="nav-menu-wrapper" id="navMenuWrapper">
+        <nav>
+          <ul class="nav-links">
+            <li><a href="../#inicio" class="nav-link">Inicio</a></li>
+            <li><a href="../#servicios" class="nav-link">Servicios & IA</a></li>
+            <li><a href="../#productos" class="nav-link">Planes B2B</a></li>
+            <li><a href="../trust/" class="nav-link" style="color:#10b981; font-weight:700;">Trust Center 🛡️</a></li>
+            <li><a href="../#contacto" class="nav-link">Contacto</a></li>
+          </ul>
+        </nav>
+        <div class="nav-actions">
+          <!-- Switcher Moneda USD / Chile UF -->
+          <div class="currency-toggle" style="display:inline-flex; align-items:center; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:30px; padding:2px; font-size:0.78rem; font-weight:700;">
+            <button type="button" class="btn-cur-switch" data-cur="USD" onclick="setSiteCurrency('USD')" style="border:none; background:transparent; padding:0.35rem 0.65rem; border-radius:20px; cursor:pointer; color:#475569; transition:all 0.2s; font-weight:700;">🇺🇸 USD</button>
+            <button type="button" class="btn-cur-switch active" data-cur="UF" onclick="setSiteCurrency('UF')" style="border:none; background:#003366; color:#ffffff; padding:0.35rem 0.65rem; border-radius:20px; cursor:pointer; transition:all 0.2s; font-weight:700; box-shadow:0 2px 4px rgba(0,0,0,0.15);">🇨🇱 UF</button>
+          </div>
+
+          <!-- Dropdown Acceso Clientes -->
+          <div class="nav-portal-dropdown" style="position:relative; display:inline-block;">
+            <button type="button" id="btnPortalDropdown" class="btn" style="background:#f8fafc; color:#003366; border:1px solid #cbd5e1; font-size:0.85rem; padding:0.45rem 0.9rem; font-weight:700; display:flex; align-items:center; gap:0.4rem; cursor:pointer;" onclick="togglePortalDropdown(event)">
+              <span>🛡️ Portales</span> <span style="font-size:0.65rem;">▼</span>
+            </button>
+            <div id="portalDropdownMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.12); min-width:260px; padding:0.5rem; z-index:1100;">
+              <a href="/shield/portal.php" style="display:flex; align-items:flex-start; gap:0.6rem; padding:0.65rem 0.75rem; border-radius:6px; text-decoration:none; color:#1e293b; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <span style="font-size:1.2rem;">🏦</span>
+                <div>
+                  <div style="font-size:0.85rem; font-weight:700; color:#003366;">Portal DeepShield Treasury</div>
+                  <div style="font-size:0.75rem; color:#64748b;">Custodia OOB y órdenes de pago</div>
+                </div>
+              </a>
+              <a href="/shield/portal.php?tab=dmarc" style="display:flex; align-items:flex-start; gap:0.6rem; padding:0.65rem 0.75rem; border-radius:6px; text-decoration:none; color:#1e293b; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <span style="font-size:1.2rem;">📡</span>
+                <div>
+                  <div style="font-size:0.85rem; font-weight:700; color:#059669;">DMARC Watchdog & Anti-Spoofing</div>
+                  <div style="font-size:0.75rem; color:#64748b;">Dosieres mensuales y reportes PDI</div>
+                </div>
+              </a>
+              <div style="border-top:1px solid #e2e8f0; margin:0.35rem 0;"></div>
+              <a href="/trust/" style="display:flex; align-items:flex-start; gap:0.6rem; padding:0.65rem 0.75rem; border-radius:6px; text-decoration:none; color:#1e293b; transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <span style="font-size:1.2rem;">🔒</span>
+                <div>
+                  <div style="font-size:0.85rem; font-weight:700; color:#0284c7;">Trust Center & Telemetría</div>
+                  <div style="font-size:0.75rem; color:#64748b;">Postura de seguridad en tiempo real</div>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <a href="../#escaner" class="btn btn-primary" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); font-size:0.88rem;">🛡️ Escáner Gratuito</a>
+        </div>
+      </div>
     </div>
   </header>
 
