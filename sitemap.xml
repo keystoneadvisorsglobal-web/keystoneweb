@@ -12,52 +12,44 @@
     <priority>1.0</priority>
   </url>
 
-  <!-- 2. Escáner de Ciberseguridad & Diagnóstico DMARC Gratuito -->
+  <!-- 2. Salesforce Financial Services Cloud (FSC) & Agentforce -->
   <url>
-    <loc>https://www.keystoneadvisors.cl/#escaner</loc>
+    <loc>https://www.keystoneadvisors.cl/salesforce-fsc/</loc>
     <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.95</priority>
   </url>
 
-  <!-- 3. KeyHub Suite (SaaS para Gestión de Horas, Contratos & Kanban) -->
+  <!-- 3. Ciberseguridad Ofensiva & Blindaje Fraude del CEO (BEC) / DMARC -->
   <url>
-    <loc>https://www.keystoneadvisors.cl/#keyhub</loc>
+    <loc>https://www.keystoneadvisors.cl/ciberseguridad-bec/</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- 4. KeyHub Suite (SaaS para Gestión de Horas, Contratos & Kanban) -->
+  <url>
+    <loc>https://www.keystoneadvisors.cl/keyhub/</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.88</priority>
+  </url>
+
+  <!-- 5. Fábrica de Software Offshore / Nearshore & Staff Augmentation -->
+  <url>
+    <loc>https://www.keystoneadvisors.cl/desarrollo-offshore/</loc>
     <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
 
-  <!-- 4. Portal Trust Center (Seguridad, Cifrado & Telemetría Pública) -->
+  <!-- 6. Portal Trust Center (Seguridad, Cifrado & Telemetría Pública) -->
   <url>
     <loc>https://www.keystoneadvisors.cl/trust/</loc>
     <lastmod>2026-11-13</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <!-- 5. Servicios de Ciberseguridad IA, Salesforce CRM & Cloud -->
-  <url>
-    <loc>https://www.keystoneadvisors.cl/#servicios</loc>
-    <lastmod>2026-11-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <!-- 6. Planes Comerciales B2B & Licenciamiento -->
-  <url>
-    <loc>https://www.keystoneadvisors.cl/#productos</loc>
-    <lastmod>2026-11-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.75</priority>
-  </url>
-
-  <!-- 7. Canal de Contacto & Solicitud de Propuestas -->
-  <url>
-    <loc>https://www.keystoneadvisors.cl/#contacto</loc>
-    <lastmod>2026-11-13</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.80</priority>
   </url>
 
 </urlset>
