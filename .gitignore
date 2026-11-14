@@ -26,3 +26,9 @@ assets/creatives/*.jpg
 assets/creatives/*.png
 !assets/creatives/.gitkeep
 xmlrpc.php
+
+# Keystone AI Governance Suite (Local only - Repo platform is keystone-context-engine)
+.agents/
+.cursorrules
+.vscode/keystone.code-snippets
+.keystone_mcp.json
