@@ -310,6 +310,7 @@ $page_desc = "Protegemos a empresas y tesorerías contra el Fraude del CEO (BEC)
     </div>
   </footer>
 
+  <script src="/assets/js/telemetry.js?v=20261115_01" defer></script>
 </body>
 </html>
 

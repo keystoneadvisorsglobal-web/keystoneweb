@@ -1836,5 +1836,6 @@ $page_desc = "Consultoría líder en Salesforce FSC, Agentforce y Ciberseguridad
     });
   </script>
 
+  <script src="/assets/js/telemetry.js?v=20261115_01" defer></script>
 </body>
 </html>

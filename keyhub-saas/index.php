@@ -318,5 +318,6 @@ $page_desc = "La suite SaaS integral para empresas de consultoría e ingeniería
     </div>
   </footer>
 
+  <script src="/assets/js/telemetry.js?v=20261115_01" defer></script>
 </body>
 </html>
