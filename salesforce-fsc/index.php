@@ -466,6 +466,7 @@ $page_desc = "Consultoría certificada en Salesforce Financial Services Cloud (F
     </div>
   </footer>
 
+  <script src="/assets/js/telemetry.js?v=20261115_01" defer></script>
 </body>
 </html>
 

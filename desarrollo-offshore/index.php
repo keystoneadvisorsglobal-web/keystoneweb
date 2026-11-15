@@ -261,6 +261,7 @@ $page_desc = "Fábrica de software y células ágiles de desarrollo offshore / n
     </div>
   </footer>
 
+  <script src="/assets/js/telemetry.js?v=20261115_01" defer></script>
 </body>
 </html>
 

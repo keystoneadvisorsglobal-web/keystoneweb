@@ -1328,6 +1328,47 @@ $drop_rate_view_to_intent = $funnel_views > 0 ? round((1 - ($funnel_modal_opens 
 
 $drop_rate_intent_to_lead = $funnel_modal_opens > 0 ? round((1 - ($funnel_submissions / max(1, $funnel_modal_opens))) * 100, 1) : 0;
 
+// 2.1 Telemetría Forense: Sesiones Vivas y Rutas de Navegación Recientes
+$live_sessions = [];
+$top_pages = [];
+$unique_visitors_today = 0;
+
+if ($events_table_exists) {
+    $cols = $db->query("PRAGMA table_info(site_events)")->fetchAll(PDO::FETCH_ASSOC);
+    $cnames = array_column($cols, 'name');
+    $has_ext = in_array('page_url', $cnames);
+
+    $unique_visitors_today = (int)$db->query("SELECT COUNT(DISTINCT session_id) FROM site_events WHERE date(created_at) = date('now')")->fetchColumn();
+
+    $col_page = $has_ext ? "COALESCE(page_url, section, '/')" : "COALESCE(section, '/')";
+    $stmt_top = $db->query("
+        SELECT {$col_page} as page, COUNT(*) as views 
+        FROM site_events 
+        WHERE event_name = 'page_view' 
+        GROUP BY page 
+        ORDER BY views DESC 
+        LIMIT 6
+    ");
+    if ($stmt_top) $top_pages = $stmt_top->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmt_sess = $db->query("
+        SELECT 
+            session_id,
+            COALESCE(country, 'CL') as country,
+            COALESCE(device, 'Escritorio') as device,
+            ip_address,
+            MAX(created_at) as last_seen,
+            MIN(created_at) as first_seen,
+            COUNT(*) as total_hits,
+            GROUP_CONCAT(COALESCE(page_url, section, '/'), ' ➔ ') as journey,
+            COALESCE(referrer, 'Directo / Orgánico') as referrer
+        FROM site_events
+        GROUP BY session_id
+        ORDER BY last_seen DESC
+        LIMIT 15
+    ");
+    if ($stmt_sess) $live_sessions = $stmt_sess->fetchAll(PDO::FETCH_ASSOC);
+}
 // 3. Productos / Servicios más demandados (Intención de Compra)
 $top_products = $db->query("
     SELECT service, COUNT(*) as cnt 
@@ -1701,6 +1742,126 @@ $scans_list = $db->query("
             <div class="dropoff-rate">⚠️ Fuga en Formulario: <?php echo $drop_rate_intent_to_lead; ?>%</div>
           </div>
         </div>
+      </div>
+
+      <!-- Telemetría Forense en Vivo: Rutas de Navegación & Páginas Más Consultadas -->
+      <div style="display:grid; grid-template-columns: 2fr 1fr; gap:1.5rem; margin-bottom:2rem;">
+        
+        <!-- Tabla de Sesiones Vivas y Rutas -->
+        <div class="table-container" style="margin-bottom:0;">
+          <div class="table-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <h3 style="margin:0; font-size:1.05rem; display:flex; align-items:center; gap:0.5rem;">
+                <span style="width:9px; height:9px; border-radius:50%; background:#10b981; display:inline-block; box-shadow:0 0 8px #10b981;"></span>
+                Rutas de Navegación Forense en Vivo
+              </h3>
+              <p style="font-size:0.8rem; color:#64748b; margin-top:0.25rem;">Trazabilidad por sesión: páginas recorridas en orden cronológico y canal de procedencia.</p>
+            </div>
+            <span style="background:#ecfdf5; color:#065f46; font-size:0.75rem; font-weight:700; padding:0.25rem 0.6rem; border-radius:6px; border:1px solid #a7f3d0;">
+              <?php echo count($live_sessions); ?> Sesiones Recientes
+            </span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Hora / País</th>
+                <th>Dispositivo</th>
+                <th>Ruta de Navegación (Journey)</th>
+                <th>Origen (Referrer)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if (empty($live_sessions)): ?>
+                <tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:2rem;">No hay sesiones registradas en la telemetría aún.</td></tr>
+              <?php else: ?>
+                <?php foreach ($live_sessions as $s): ?>
+                  <tr>
+                    <td style="white-space:nowrap;">
+                      <div style="font-size:0.82rem; font-weight:700; color:#1e293b;"><?php echo date('H:i:s', strtotime($s['last_seen'])); ?></div>
+                      <div style="font-size:0.72rem; color:#64748b;">🌐 <?php echo htmlspecialchars($s['country']); ?> &bull; <?php echo date('d/m', strtotime($s['last_seen'])); ?></div>
+                    </td>
+                    <td>
+                      <span style="font-size:0.75rem; font-weight:600; padding:0.2rem 0.5rem; border-radius:4px; background:#f1f5f9; color:#475569;">
+                        <?php echo htmlspecialchars($s['device']); ?>
+                      </span>
+                    </td>
+                    <td>
+                      <div style="font-size:0.82rem; font-family:monospace; color:#0f766e; background:#f0fdf4; padding:0.35rem 0.55rem; border-radius:5px; border:1px solid #bbf7d0; word-break:break-all;">
+                        <?php 
+                          $steps = explode(' ➔ ', $s['journey']);
+                          $unique_steps = [];
+                          foreach ($steps as $st) {
+                            $st = trim($st);
+                            if (empty($unique_steps) || end($unique_steps) !== $st) $unique_steps[] = $st;
+                          }
+                          echo htmlspecialchars(implode(' ➔ ', $unique_steps));
+                        ?>
+                      </div>
+                      <div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;"><?php echo (int)$s['total_hits']; ?> interacciones en la sesión</div>
+                    </td>
+                    <td>
+                      <div style="font-size:0.78rem; color:#334155; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<?php echo htmlspecialchars($s['referrer']); ?>">
+                        <?php 
+                          $ref = $s['referrer'];
+                          if (empty($ref) || $ref === 'Directo / Orgánico') echo '<span style="color:#64748b;">Tráfico Directo</span>';
+                          elseif (strpos($ref, 'google') !== false) echo '<span style="color:#2563eb; font-weight:600;">🔍 Google Search</span>';
+                          elseif (strpos($ref, 'linkedin') !== false) echo '<span style="color:#0284c7; font-weight:600;">💼 LinkedIn</span>';
+                          elseif (strpos($ref, 'wa.me') !== false || strpos($ref, 'whatsapp') !== false) echo '<span style="color:#16a34a; font-weight:600;">📱 WhatsApp</span>';
+                          else echo htmlspecialchars(substr($ref, 0, 30));
+                        ?>
+                      </div>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Ranking de Páginas Más Consultadas -->
+        <div class="table-container" style="margin-bottom:0;">
+          <div class="table-header">
+            <h3 style="margin:0; font-size:1.05rem;">🔥 Páginas Más Vistas</h3>
+            <p style="font-size:0.8rem; color:#64748b; margin-top:0.25rem;">Volumen de vistas por sección</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Página / Silo</th>
+                <th style="text-align:right;">Vistas</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if (empty($top_pages)): ?>
+                <tr><td colspan="2" style="text-align:center; color:#94a3b8; padding:2rem;">Sin datos de vistas.</td></tr>
+              <?php else: ?>
+                <?php foreach ($top_pages as $tp): ?>
+                  <tr>
+                    <td>
+                      <div style="font-size:0.82rem; font-weight:600; color:#1e293b;">
+                        <?php 
+                          $pg = $tp['page'];
+                          if ($pg === '/' || $pg === 'inicio') echo '🏠 Home Principal';
+                          elseif (strpos($pg, 'salesforce-fsc') !== false) echo '⚡ Salesforce FSC';
+                          elseif (strpos($pg, 'ciberseguridad-bec') !== false) echo '🛡️ Ciberseguridad BEC';
+                          elseif (strpos($pg, 'keyhub-saas') !== false) echo '💼 KeyHub SaaS';
+                          elseif (strpos($pg, 'desarrollo-offshore') !== false) echo '🌐 Offshore Software';
+                          elseif (strpos($pg, 'trust') !== false) echo '🔒 Trust Center';
+                          else echo htmlspecialchars($pg);
+                        ?>
+                      </div>
+                      <div style="font-size:0.7rem; color:#94a3b8; font-family:monospace;"><?php echo htmlspecialchars($pg); ?></div>
+                    </td>
+                    <td style="text-align:right; font-weight:700; color:#0f766e; font-size:0.9rem;">
+                      <?php echo number_format($tp['views']); ?>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+
       </div>
 
       <!-- Intenciones de Compra por Producto -->
