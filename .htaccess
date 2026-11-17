@@ -35,8 +35,16 @@ RewriteBase /
 RewriteRule ^data/ - [F,L]
 RewriteRule (^|/)\.(?!well-known) - [F,L]
 
-# Permitir archivos físicos reales (robots.txt, sitemap.xml, css, js, imágenes)
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /index.php [L]
+# Redireccionar URLs heredadas o rezago de WordPress hacia la raíz con 301
+RewriteRule ^(category|tag|author|feed|wp-json)/ - [R=301,L]
+RewriteRule ^(protege-tus-datos-un-derecho-fundamental-en-la-era-digital|liderando-la-proxima-ola-de-innovacion-bancaria-con-agentforce|tu-factura-cloud-sigue-creciendo|5-claves-para-gestionar-un-equipo-de-ti-offshore-y-maximizar-tu-roi|la-ia-redefiniendo-la-innovacion-en-la-fuerza-laboral-y-el-futuro-del-trabajo|como-migrar-sistemas-heredados-hacia-tecnologias-modernas|salesforce-starter-suite|salesforce-starter|salesforce-quick-starter|asociaciones|reserva-tu-cita|servicios|contacto|hablemos-por-whatsapp|canal-de-denuncias-confidencial)/?$ / [R=301,L]
+
+# Permitir archivos y directorios físicos reales (css, js, imágenes, robots.txt, sitemap.xml, landings activas)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Manejo de error 404 para cualquier ruta inexistente
+ErrorDocument 404 /404.php
+RewriteRule . /404.php [L]
 </IfModule>
