@@ -3,15 +3,14 @@
 *.sqlite-wal
 *.sqlite-shm
 data/*.sqlite*
+dev_leads_data/
+qa_leads_data/
+prod_leads_data/
 
-# WordPress Core y Cache (mantener portal corporativo Keystone limpio)
-agentforce/
-wp-*.php
-license.txt
-readme.html
-.lscache_purge
-.htaccess.bk
-index_wordpress_backup.php
+# Dependencias y caché de compilación local Next.js (el export estático final se sirve desde la raíz y public/)
+node_modules/
+.next/
+out/
 
 # macOS & Archivos temporales
 ._*
@@ -20,12 +19,7 @@ index_wordpress_backup.php
 *.tmp
 *.bak
 .private/
-
-# Assets autogenerados
-assets/creatives/*.jpg
-assets/creatives/*.png
-!assets/creatives/.gitkeep
-xmlrpc.php
+id_ed25519_nb_mary*
 
 # Keystone AI Governance Suite (Local only - Repo platform is keystone-context-engine)
 .agents/

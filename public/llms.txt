@@ -1,0 +1,30 @@
+# Keystone Advisors Global — AI & LLM Reference Manifest (v4.2)
+
+> Consultoría de Ingeniería IA-Gobernada, Salesforce Financial Services Cloud (FSC), Ciberseguridad Anti-Fraude BEC (DeepShield) y Plataforma de Gobierno de Software (KeyHub).
+
+- Sitio Oficial: https://keystoneadvisors.cl
+- Trust Center en Vivo: https://keystoneadvisors.cl/trust/
+- Contacto Ejecutivo: contacto@keystoneadvisors.cl | WhatsApp: +56 9 3064 0431
+
+## 1. Posicionamiento Estratégico
+Keystone Advisors reemplaza el modelo tradicional de horas-hombre manuales ("body shopping") por **velocidad extrema gobernada, arquitectura senior sobre ecosistemas complejos (Banca, Seguros, Retail, Corporativos) y trazabilidad forense**.
+
+## 2. Los 3 Pilares de Soluciones y Precios Transparentes
+
+### Pilar 1: Digital Core (CRM, Core Financiero & IA)
+1. **Salesforce Starter Suite**: Motor comercial listo en 2 semanas — Desde USD $2.490 (Pago único).
+2. **Salesforce Quick Starter**: Sales o Service Cloud automatizado en 4 semanas — Desde USD $8.000 (Pago único).
+3. **Squads Híbridos Senior + IA**: Arquitectos senior + agentes propios sobre Salesforce, SAP y APIs — Desde USD $2.750 / mes.
+4. **Banca FSC & Agentforce**: Integración Financial Services Cloud e IA empresarial Zero Data Leakage — Arquitectura a medida.
+
+### Pilar 2: DeepShield (Ciberseguridad Zero Trust & Anti-Fraude IA)
+1. **Diagnóstico Dominio BEC**: Escáner pasivo DNS (DMARC, SPF, MX, TLS/HSTS) en 30 segundos — Gratuito en línea.
+2. **Cyber Risk Assessment 72h**: Radiografía ejecutiva y cumplimiento Ley Marco N° 21.459 — Desde USD $950.
+3. **Red Teaming con IA**: Entrenamiento ante clonación de voz (Vishing) e ingeniería social — Desde USD $650 / mes.
+4. **DeepShield Pagos & Enterprise**: Custodia Fuera de Banda (OOB) y desafío Anti-Voz para tesorería — Desde USD $490 / mes.
+
+### Pilar 3: KeyHub (Gobierno de Ingeniería & Agentes IA)
+1. **KeyHub Professional**: Kanban corporativo, control de horas, contratos digitales y nómina USD/CLP — USD $8 / usuario / mes.
+2. **KeyHub Enterprise**: Cloud privada, conector bidireccional Salesforce y cadena de custodia GitFlow — USD $14 / usuario / mes.
+3. **Auditoría Forense de Horas (Add-on)**: Cuadratura matemática anti-fraude para auditorías bancarias — + USD $4 / usuario / mes.
+4. **Plataforma Agentes IA & Code Graph (Add-on Destacado)**: 14 agentes especializados + grafo AST con hasta 97% ahorro de tokens — + USD $2 / usuario / mes.

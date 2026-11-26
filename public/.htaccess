@@ -1,0 +1,61 @@
+# ==============================================================================
+# Keystone Advisors Global — Apache / LiteSpeed Perimeter & SPA Routing (SOL-0347)
+# Multi-Environment Ready: DEV (dev.) | QA (qa.) | PROD (keystoneadvisors.cl)
+# ==============================================================================
+DirectoryIndex index.html index.php
+
+<IfModule LiteSpeed>
+  CacheLookup off
+</IfModule>
+
+<FilesMatch "\.(sqlite|sqlite3|db|log|env|bak|sql|sh|md)$">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header unset X-Powered-By
+  Header always unset X-Powered-By
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Bloquear acceso HTTP a carpetas internas de código fuente/datos, archivos ocultos y extensiones sensibles
+  RewriteRule ^(data|dev_leads_data|qa_leads_data|prod_leads_data|src|public|node_modules)/ - [F,L,NC]
+  RewriteRule (^|/)\.(?!well-known) - [F,L]
+  RewriteRule \.(sqlite|sqlite3|db|log|env|bak|sql|sh|md)$ - [F,L,NC]
+  RewriteRule ^(package(-lock)?\.json|tsconfig\.json|tailwind\.config\.ts|next\.config\.mjs|postcss\.config\.mjs)$ - [F,L,NC]
+
+  # Alias históricos -> rutas canónicas Next.js v4.4
+  RewriteRule ^admin\.php$ /admin/ [R=301,L,NC]
+  RewriteRule ^admin/index\.php$ /admin/ [R=301,L,NC]
+  RewriteRule ^portal\.php$ /shield/portal/ [R=301,L,NC]
+
+  # Permitir acceso directo a archivos y directorios físicos reales (API PHP, assets, etc.)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Mapeo limpio de rutas estáticas con barra final: /trust/ -> /trust/index.html
+  RewriteCond %{DOCUMENT_ROOT}/$1/index.html -f
+  RewriteRule ^(.*)/$ $1/index.html [L]
+
+  # Mapeo limpio sin barra final: /trust -> /trust/index.html
+  RewriteCond %{DOCUMENT_ROOT}/$1/index.html -f
+  RewriteRule ^(.*)$ $1/index.html [L]
+
+  # Fallback a index.html raíz para enrutamiento SPA del cliente
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^ index.html [L]
+</IfModule>

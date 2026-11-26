@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Allow: /trust/
+Allow: /llms.txt
+Disallow: /admin/
+Disallow: /api/admin/
+Disallow: /shield/verify/
+Disallow: /shield/rt/
+
+Sitemap: https://keystoneadvisors.cl/sitemap.xml

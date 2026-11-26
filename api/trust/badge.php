@@ -10,9 +10,48 @@ header('Cache-Control: public, max-age=600'); // 10 min de caché en navegador
 header('X-Content-Type-Options: nosniff');
 
 require_once __DIR__ . '/TrustZeroTelemetryService.php';
+require_once dirname(__DIR__) . '/admin/_core.php';
 
 $domain = isset($_GET['domain']) ? trim($_GET['domain']) : 'keystoneadvisors.cl';
-$posture = TrustZeroTelemetryService::getSecurityPosture($domain);
+$cleanDomain = strtolower(preg_replace('#^https?://#i', '', $domain));
+$cleanDomain = explode('/', $cleanDomain)[0];
+$cleanDomain = preg_replace('/^www\./i', '', $cleanDomain);
+
+// Telemetría Automática: Detección y Registro de Instalación del Sello en Web del Cliente
+try {
+    $db = AdminCore::db();
+    $rawReferer = (string)($_SERVER['HTTP_REFERER'] ?? '');
+    $refHost = '';
+    if ($rawReferer !== '') {
+        $parsedRef = parse_url($rawReferer);
+        $refHost = strtolower($parsedRef['host'] ?? '');
+        $refHost = preg_replace('/^www\./i', '', $refHost);
+    }
+
+    // Registrar si el referer coincide o si se consulta para un dominio vigilado
+    $targetDomain = $cleanDomain ?: $refHost;
+    if ($targetDomain !== '') {
+        $updBadge = $db->prepare("
+            UPDATE watched_domains
+            SET badge_installed = 1,
+                badge_impressions = COALESCE(badge_impressions, 0) + 1,
+                badge_last_origin = COALESCE(NULLIF(?, ''), badge_last_origin),
+                badge_last_seen_at = CURRENT_TIMESTAMP
+            WHERE LOWER(domain) = LOWER(?)
+               OR (? != '' AND LOWER(domain) = LOWER(?))
+        ");
+        $updBadge->execute([
+            $rawReferer ?: 'Llamada Directa Web',
+            $targetDomain,
+            $refHost,
+            $refHost
+        ]);
+    }
+} catch (Exception $e) {
+    // Falla silenciosa para no interrumpir el renderizado gráfico del SVG
+}
+
+$posture = TrustZeroTelemetryService::getSecurityPosture($cleanDomain ?: 'keystoneadvisors.cl');
 
 $score = $posture['trust_score'] ?? 95;
 $badgeColor = ($score >= 85) ? '#10b981' : '#0284c7';

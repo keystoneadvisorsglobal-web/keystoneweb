@@ -1,20 +1,10 @@
-# Keystone Advisors - Archivo de Directivas de Rastreo para Motores de Búsqueda
-# Dominio Oficial: https://www.keystoneadvisors.cl
-
 User-agent: *
 Allow: /
 Allow: /trust/
-Allow: /assets/css/
-Allow: /assets/js/
-Allow: /assets/images/
-
-# Excluir rutas administrativas, de autenticación privada, almacenamiento y portal de tesorería
+Allow: /llms.txt
 Disallow: /admin/
-Disallow: /data/
-Disallow: /api/
-Disallow: /shield/
-Disallow: /test_
-Disallow: /tmp/
+Disallow: /api/admin/
+Disallow: /shield/verify/
+Disallow: /shield/rt/
 
-# Declaración del Mapa del Sitio Oficial (Sitemap)
-Sitemap: https://www.keystoneadvisors.cl/sitemap.xml
+Sitemap: https://keystoneadvisors.cl/sitemap.xml

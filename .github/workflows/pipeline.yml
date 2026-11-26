@@ -1,0 +1,43 @@
+name: 🚀 Keystone CI/CD & Quality Gates Pipeline
+on:
+  push:
+    branches: [ develop, qa ]
+  pull_request:
+    branches: [ develop, qa, main ]
+
+jobs:
+  quality-gates:
+    name: 🧪 Quality Gates & Gobernanza
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Clonar Repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🐘 Configurar PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: 🛡️ Validación Sintáctica PHP Lint (API & Libs)
+        run: |
+          echo "🔍 Ejecutando php -l sobre todos los endpoints PHP..."
+          find api public/api -name "*.php" -exec php -l {} +
+
+      - name: 🔢 Verificación de Correlativo SOL-XXXX
+        run: |
+          echo "🔍 Comprobando registro de correlativo en CONTROL_CORRELATIVOS.md..."
+          if ! grep -q "SOL-" CONTROL_CORRELATIVOS.md; then
+            echo "❌ ERROR: No se encontró correlativo SOL-XXXX registrado."
+            exit 1
+          fi
+          echo "✅ Correlativo validado."
+
+      - name: 🌐 Consulta de Estado al Keystone Gateway
+        env:
+          KEYSTONE_TOKEN: ${{ secrets.KEYSTONE_DEVELOPER_TOKEN }}
+        run: |
+          echo "📡 Verificando disponibilidad del Keystone Context Gateway..."
+          curl -sI https://gateway.keystoneadvisors.cl/?action=ping || true
