@@ -1,17 +1,49 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ShieldAlert, CheckCircle2, Lock, Eye } from "lucide-react";
+import { ShieldAlert, CheckCircle2, Lock, Eye, Flag } from "lucide-react";
 
 export default function ShieldRedTeamTrainingPage() {
+  const [token, setToken] = useState<string>("demo");
+  const [companyLabel, setCompanyLabel] = useState<string>("");
+  const [reported, setReported] = useState<boolean>(false);
+  const [busy, setBusy] = useState<boolean>(false);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const t = new URLSearchParams(window.location.search).get("t") || "demo";
-    fetch(`/api/shield/client_api.php?action=rt_telemetry&t=${encodeURIComponent(t)}`).catch(
-      () => {}
-    );
+    setToken(t);
+    fetch(
+      `/api/shield/client_api.php?action=rt_telemetry&t=${encodeURIComponent(t)}`
+    )
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.company_name) setCompanyLabel(d.company_name);
+        if (d?.already_reported) setReported(true);
+      })
+      .catch(() => {});
   }, []);
+
+  const handleConfirmAwareness = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch("/api/shield/client_api.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "rt_report_drill",
+          token,
+        }),
+      });
+      const d = await r.json();
+      if (d?.success) {
+        setReported(true);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div
@@ -30,6 +62,7 @@ export default function ShieldRedTeamTrainingPage() {
         <div className="flex items-center justify-between">
           <span className="px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/35 text-[10px] font-bold uppercase tracking-widest text-amber-200">
             Entrenamiento Ético Red Teaming IA
+            {companyLabel ? ` · ${companyLabel}` : ""}
           </span>
           <ShieldAlert className="w-6 h-6 text-amber-300" />
         </div>
@@ -79,13 +112,40 @@ export default function ShieldRedTeamTrainingPage() {
           </ul>
         </div>
 
-        <div className="p-3.5 rounded-xl bg-emerald-400/10 border border-emerald-400/25 flex items-center gap-3 text-xs text-emerald-200">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          <span>
-            Tu dispositivo y credenciales están 100% seguros. Ningún dato
-            confidencial fue capturado durante esta simulación.
-          </span>
-        </div>
+        {reported ? (
+          <div className="p-3.5 rounded-xl bg-emerald-400/15 border border-emerald-400/35 flex items-center gap-3 text-xs text-emerald-200 font-semibold">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <span>
+              Cápsula completada y registrada positivamente en el índice de
+              resiliencia de tu organización. Ningún dato sensible fue
+              capturado.
+            </span>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="p-3.5 rounded-xl bg-emerald-400/10 border border-emerald-400/25 flex items-center gap-3 text-xs text-emerald-200">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <span>
+                Tu dispositivo y credenciales están 100% seguros. Cero captura
+                de contraseñas.
+              </span>
+            </div>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleConfirmAwareness}
+              style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+              className="w-full py-2.5 rounded-xl bg-emerald-300 hover:bg-white text-[#0A0E15] text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
+            >
+              <Flag className="w-4 h-4" />
+              <span>
+                {busy
+                  ? "Registrando..."
+                  : "Completar Cápsula & Registrar Reporte al SOC"}
+              </span>
+            </button>
+          </div>
+        )}
 
         <div className="pt-2 flex items-center justify-between text-[11px] text-white/45">
           <span className="inline-flex items-center gap-1.5">

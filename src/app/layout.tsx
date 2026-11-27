@@ -20,12 +20,12 @@ export const metadata: Metadata = {
   title: "Keystone Advisors Global | Consultoría Estratégica Salesforce, Cloud & Ciberseguridad",
   description: "Aceleramos el futuro digital de las empresas más exigentes con ingeniería de software de élite, Salesforce FSC, KeyHub SaaS y Blindaje perimetral BEC.",
   icons: {
-    shortcut: "/favicon.png",
     icon: [
-      { url: "/favicon.png", type: "image/png" },
-      { url: "/favicon.ico" },
+      { url: "/favicon.png?v=ks44", type: "image/png", sizes: "64x64" },
+      { url: "/favicon.ico?v=ks44", sizes: "any" },
     ],
-    apple: "/favicon.png",
+    shortcut: "/favicon.png?v=ks44",
+    apple: "/favicon.png?v=ks44",
   },
 };
 
