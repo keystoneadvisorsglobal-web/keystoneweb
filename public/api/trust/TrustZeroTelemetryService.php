@@ -13,12 +13,30 @@ class TrustZeroTelemetryService {
     private static $cacheDuration = 900; // 15 minutos de caché para evitar sobrecargar DNS
 
     public static function getSecurityPosture($domain = 'keystoneadvisors.cl') {
-        $domain = strtolower(trim(preg_replace('#^https?://#i', '', $domain)));
+        $domain = strtolower(trim(preg_replace('#^https?://#i', '', (string)$domain)));
         $domain = explode('/', $domain)[0];
+        $domain = preg_replace('/^www\./i', '', $domain);
+
+        // Validación estricta RFC hostname + protección anti-SSRF (SOL-0348)
+        if (
+            empty($domain) ||
+            strlen($domain) > 190 ||
+            filter_var($domain, FILTER_VALIDATE_IP) ||
+            !preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i', $domain)
+        ) {
+            throw new InvalidArgumentException('Formato de dominio corporativo no válido.');
+        }
+
+        $resolvedIp = @gethostbyname($domain);
+        if ($resolvedIp !== $domain && filter_var($resolvedIp, FILTER_VALIDATE_IP)) {
+            if (!filter_var($resolvedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                throw new InvalidArgumentException('Dominio interno o reservado rechazado por seguridad Zero-Trust.');
+            }
+        }
 
         $cacheDir = __DIR__ . '/../../data/cache';
         if (!is_dir($cacheDir)) {
-            @mkdir($cacheDir, 0755, true);
+            @mkdir($cacheDir, 0750, true);
         }
         $cacheFile = $cacheDir . '/trustzero_' . md5($domain) . '.json';
 
@@ -38,7 +56,8 @@ class TrustZeroTelemetryService {
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HEADER, true);
         curl_setopt($ch, CURLOPT_NOBODY, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+        curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_TIMEOUT, 5);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_USERAGENT, 'TrustZero-Monitor/2.0');

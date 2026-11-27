@@ -51,7 +51,11 @@ try {
     // Falla silenciosa para no interrumpir el renderizado gráfico del SVG
 }
 
-$posture = TrustZeroTelemetryService::getSecurityPosture($cleanDomain ?: 'keystoneadvisors.cl');
+try {
+    $posture = TrustZeroTelemetryService::getSecurityPosture($cleanDomain ?: 'keystoneadvisors.cl');
+} catch (Exception $e) {
+    $posture = ['trust_score' => 0];
+}
 
 $score = $posture['trust_score'] ?? 95;
 $badgeColor = ($score >= 85) ? '#10b981' : '#0284c7';

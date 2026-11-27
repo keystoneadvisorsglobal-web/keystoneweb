@@ -133,13 +133,21 @@ class AdminCore {
             $db->exec("ALTER TABLE admin_users ADD COLUMN google_sub TEXT DEFAULT ''");
         }
 
-        // 2. Rate Limiting anti fuerza bruta
+        // 2. Rate Limiting anti fuerza bruta y abuso de endpoints públicos (SOL-0348)
         $db->exec("CREATE TABLE IF NOT EXISTS login_attempts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ip_address TEXT NOT NULL,
             username TEXT DEFAULT '',
             attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
+
+        $db->exec("CREATE TABLE IF NOT EXISTS api_rate_limits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bucket TEXT NOT NULL,
+            ip_hash TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_rate_bucket_ip ON api_rate_limits(bucket, ip_hash, created_at)");
 
         // 3. Micro-leads del sitio espacial + trazabilidad KeyHub
         $db->exec("CREATE TABLE IF NOT EXISTS micro_leads (
@@ -1218,6 +1226,102 @@ class AdminCore {
         return $user;
     }
 
+    public static function clientIp(): string {
+        $candidates = [
+            $_SERVER['HTTP_CF_CONNECTING_IP'] ?? '',
+            $_SERVER['HTTP_X_REAL_IP'] ?? '',
+            isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? trim(explode(',', (string)$_SERVER['HTTP_X_FORWARDED_FOR'])[0]) : '',
+            $_SERVER['REMOTE_ADDR'] ?? '',
+        ];
+        foreach ($candidates as $cand) {
+            if ($cand !== '' && filter_var($cand, FILTER_VALIDATE_IP)) {
+                return $cand;
+            }
+        }
+        return '0.0.0.0';
+    }
+
+    public static function anonymizeIp(?string $ip = null): string {
+        $raw = $ip ?? self::clientIp();
+        return 'ip_' . substr(hash('sha256', 'ks_ley19628_salt_v4|' . $raw), 0, 16);
+    }
+
+    public static function safeHost(): string {
+        $rawHost = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? 'www.keystoneadvisors.cl')));
+        $allowed = [
+            'dev.keystoneadvisors.cl',
+            'qa.keystoneadvisors.cl',
+            'keystoneadvisors.cl',
+            'www.keystoneadvisors.cl',
+            'localhost:3000',
+            'localhost:3001',
+        ];
+        if (in_array($rawHost, $allowed, true)) {
+            return $rawHost;
+        }
+        $tier = self::detectEnvTier();
+        if ($tier === 'DEV') return 'dev.keystoneadvisors.cl';
+        if ($tier === 'QA') return 'qa.keystoneadvisors.cl';
+        return 'keystoneadvisors.cl';
+    }
+
+    public static function checkRateLimit(string $bucket, int $maxHits, int $windowSeconds = 900): void {
+        try {
+            $db = self::db();
+            $now = time();
+            $cutoff = $now - $windowSeconds;
+            $ipHash = self::anonymizeIp();
+
+            if (mt_rand(1, 20) === 1) {
+                $db->prepare("DELETE FROM api_rate_limits WHERE created_at < ?")->execute([$now - 7200]);
+            }
+
+            $chk = $db->prepare("SELECT COUNT(*) FROM api_rate_limits WHERE bucket = ? AND ip_hash = ? AND created_at >= ?");
+            $chk->execute([$bucket, $ipHash, $cutoff]);
+            if ((int)$chk->fetchColumn() >= $maxHits) {
+                self::jsonError('Límite de solicitudes alcanzado por seguridad Zero-Trust. Intente nuevamente en unos minutos.', 429);
+            }
+
+            $ins = $db->prepare("INSERT INTO api_rate_limits (bucket, ip_hash, created_at) VALUES (?, ?, ?)");
+            $ins->execute([$bucket, $ipHash, $now]);
+        } catch (Exception $e) {
+            // No bloquear operación legítima ante contención transitoria SQLite
+        }
+    }
+
+    public static function enforceSameOrigin(): void {
+        $expectedHost = self::safeHost();
+        $origin = trim((string)($_SERVER['HTTP_ORIGIN'] ?? ''));
+        $referer = trim((string)($_SERVER['HTTP_REFERER'] ?? ''));
+
+        if ($origin !== '') {
+            $oHost = strtolower((string)(parse_url($origin, PHP_URL_HOST) ?? ''));
+            $oPort = parse_url($origin, PHP_URL_PORT);
+            $oFull = $oPort ? "{$oHost}:{$oPort}" : $oHost;
+            if ($oFull !== $expectedHost && $oHost !== $expectedHost) {
+                self::jsonError('Origen cruzado (CSRF) bloqueado por política Zero-Trust.', 403);
+            }
+            return;
+        }
+
+        if ($referer !== '') {
+            $rHost = strtolower((string)(parse_url($referer, PHP_URL_HOST) ?? ''));
+            $rPort = parse_url($referer, PHP_URL_PORT);
+            $rFull = $rPort ? "{$rHost}:{$rPort}" : $rHost;
+            if ($rFull !== $expectedHost && $rHost !== $expectedHost) {
+                self::jsonError('Referencia cruzada bloqueada por política Zero-Trust.', 403);
+            }
+        }
+    }
+
+    public static function sanitizeCsvCell($val): string {
+        $str = (string)($val ?? '');
+        if ($str !== '' && in_array($str[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'" . $str;
+        }
+        return $str;
+    }
+
     public static function logAudit(string $actor, string $actionCode, string $targetRef = '', string $detail = ''): void {
         try {
             $db = self::db();
@@ -1227,7 +1331,7 @@ class AdminCore {
                 $actionCode,
                 $targetRef,
                 $detail,
-                $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0',
+                self::clientIp(),
             ]);
         } catch (Exception $e) {
             // ignore
@@ -1240,8 +1344,21 @@ class AdminCore {
         $domain = preg_replace('/^www\./i', '', $domain);
         $domain = trim($domain);
 
-        if (empty($domain) || !preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i', $domain)) {
+        if (
+            empty($domain) ||
+            strlen($domain) > 190 ||
+            filter_var($domain, FILTER_VALIDATE_IP) ||
+            !preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i', $domain)
+        ) {
             throw new InvalidArgumentException('Dominio corporativo inválido.');
+        }
+
+        // Prevención anti-SSRF: verificar que el dominio no resuelva a IPs privadas/loopback/metadata
+        $resolvedIp = @gethostbyname($domain);
+        if ($resolvedIp !== $domain && filter_var($resolvedIp, FILTER_VALIDATE_IP)) {
+            if (!filter_var($resolvedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                throw new InvalidArgumentException('Dominio interno o reservado no permitido.');
+            }
         }
 
         $score = 100;

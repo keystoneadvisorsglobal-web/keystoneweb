@@ -13,8 +13,8 @@ $clientId = trim((string)($cfg['google_client_id'] ?? ''));
 $clientSecret = trim((string)($cfg['google_client_secret'] ?? ''));
 $allowedDomain = strtolower(trim((string)($cfg['google_allowed_domain'] ?? 'keystoneadvisors.cl')));
 
-$proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$host = $_SERVER['HTTP_HOST'] ?? 'dev.keystoneadvisors.cl';
+$proto = 'https';
+$host = AdminCore::safeHost();
 $redirectUri = "{$proto}://{$host}/api/admin/sso_google.php";
 
 if (empty($clientId) || empty($clientSecret)) {
@@ -98,36 +98,32 @@ if (isset($_GET['code'])) {
 
     $domainPart = explode('@', $email)[1] ?? '';
 
-    // Buscar si ya existe usuario por email, google_sub o si pertenece al dominio corporativo autorizado
+    // Política Zero-Trust: Solo cuentas explícitamente registradas y activas en admin_users (sin auto-aprovisionamiento abierto)
     $stmt = $db->prepare("SELECT * FROM admin_users WHERE LOWER(email) = ? OR (google_sub != '' AND google_sub = ?) LIMIT 1");
     $stmt->execute([$email, $sub]);
     $userRow = $stmt->fetch();
 
-    if (!$userRow && $domainPart === $allowedDomain) {
-        // Auto-vincular al primer superadmin si aún no tenía email específico o crear operador corporativo
-        $localUser = preg_replace('/[^a-z0-9_.-]/', '', explode('@', $email)[0]);
-        $randHash = password_hash(bin2hex(random_bytes(16)), PASSWORD_BCRYPT);
-        $ins = $db->prepare("INSERT INTO admin_users (username, email, password_hash, full_name, role, google_sub, is_active) VALUES (?, ?, ?, ?, 'comercial', ?, 1)");
-        try {
-            $ins->execute([$localUser, $email, $randHash, $fullName, $sub]);
-            $newId = (int)$db->lastInsertId();
-            $s2 = $db->prepare("SELECT * FROM admin_users WHERE id = ?");
-            $s2->execute([$newId]);
-            $userRow = $s2->fetch();
-        } catch (Exception $e) {
-            $userRow = null;
-        }
+    if (!$userRow || (int)$userRow['is_active'] !== 1) {
+        AdminCore::logAudit($email, 'SSO_DENIED', $email, 'Cuenta fuera de nómina autorizada Zero-Trust');
+        header("Location: /admin/?sso_error=" . urlencode("La cuenta {$email} no está habilitada en la nómina de operadores de Keystone Console."));
+        exit;
     }
 
-    if (!$userRow || (int)$userRow['is_active'] !== 1) {
-        AdminCore::logAudit($email, 'SSO_DENIED', $email, 'Cuenta fuera de nómina autorizada');
-        header("Location: /admin/?sso_error=" . urlencode("La cuenta {$email} no está autorizada en Keystone Console."));
+    $db->prepare("UPDATE admin_users SET google_sub = ? WHERE id = ?")->execute([$sub, $userRow['id']]);
+
+    // Si el operador tiene 2FA TOTP habilitado, exigir desafío TOTP también tras Google SSO
+    if ((int)($userRow['totp_enabled'] ?? 0) === 1 && !empty($userRow['totp_secret'])) {
+        @session_regenerate_id(true);
+        $_SESSION['ks_pending_2fa_uid'] = (int)$userRow['id'];
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(24));
+        AdminCore::logAudit($userRow['username'], 'AUTH_SSO_PENDING_2FA', $email, 'Google SSO validado; esperando 2do factor TOTP');
+        header("Location: /admin/");
         exit;
     }
 
     @session_regenerate_id(true);
     $_SESSION['csrf_token'] = bin2hex(random_bytes(24));
-    $db->prepare("UPDATE admin_users SET google_sub = ?, last_login = CURRENT_TIMESTAMP WHERE id = ?")->execute([$sub, $userRow['id']]);
+    $db->prepare("UPDATE admin_users SET last_login = CURRENT_TIMESTAMP WHERE id = ?")->execute([$userRow['id']]);
 
     $_SESSION['ks_admin_user'] = [
         'id' => (int)$userRow['id'],

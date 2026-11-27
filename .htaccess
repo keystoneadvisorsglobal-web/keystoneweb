@@ -1,8 +1,9 @@
 # ==============================================================================
-# Keystone Advisors Global — Apache / LiteSpeed Perimeter & SPA Routing (SOL-0347)
+# Keystone Advisors Global — Apache / LiteSpeed Perimeter & SPA Routing (SOL-0348)
 # Multi-Environment Ready: DEV (dev.) | QA (qa.) | PROD (keystoneadvisors.cl)
 # ==============================================================================
 DirectoryIndex index.html index.php
+Options -Indexes
 
 <IfModule LiteSpeed>
   CacheLookup off
@@ -19,6 +20,7 @@ DirectoryIndex index.html index.php
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
 
   <FilesMatch "\.(html|htm)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
@@ -31,11 +33,11 @@ DirectoryIndex index.html index.php
   RewriteEngine On
   RewriteBase /
 
-  # Bloquear acceso HTTP a carpetas internas de código fuente/datos, archivos ocultos y extensiones sensibles
-  RewriteRule ^(data|dev_leads_data|qa_leads_data|prod_leads_data|src|public|node_modules)/ - [F,L,NC]
+  # Bloquear acceso HTTP a carpetas internas de código fuente/librerías/datos, archivos ocultos y extensiones sensibles
+  RewriteRule ^(data|dev_leads_data|qa_leads_data|prod_leads_data|src|public|lib|node_modules)/ - [F,L,NC]
   RewriteRule (^|/)\.(?!well-known) - [F,L]
   RewriteRule \.(sqlite|sqlite3|db|log|env|bak|sql|sh|md)$ - [F,L,NC]
-  RewriteRule ^(package(-lock)?\.json|tsconfig\.json|tailwind\.config\.ts|next\.config\.mjs|postcss\.config\.mjs)$ - [F,L,NC]
+  RewriteRule ^(package(-lock)?\.json|tsconfig\.json|tailwind\.config\.ts|next\.config\.mjs|postcss\.config\.mjs|deploy-dev\.sh)$ - [F,L,NC]
 
   # Alias históricos -> rutas canónicas Next.js v4.4
   RewriteRule ^admin\.php$ /admin/ [R=301,L,NC]

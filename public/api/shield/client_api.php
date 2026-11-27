@@ -105,26 +105,33 @@ if ($method === 'GET') {
         AdminCore::jsonOk(['authenticated' => false]);
     }
 
-    // 2. Consultar Orden por Token para Firma Móvil OOB (/shield/verify/?token=...) — soporta Firmante 1 y Firmante 2 Mancomunado
+    // 2. Consultar Orden por Token Criptográfico para Firma Móvil OOB (/shield/verify/?token=...) — 192-bit entropy
     if ($action === 'order_by_token') {
+        AdminCore::checkRateLimit('oob_token_lookup', 30, 900);
         $rawToken = trim((string)($_GET['token'] ?? ''));
-        if ($rawToken === '') {
-            AdminCore::jsonError('Token de validación requerido.', 422);
+        if (strlen($rawToken) < 32 || !preg_match('/^[a-f0-9]+$/i', $rawToken)) {
+            AdminCore::jsonError('Enlace criptográfico inválido o incompleto.', 422);
         }
-        $hash = preg_match('/^[a-f0-9]{64}$/i', $rawToken) ? strtolower($rawToken) : hash('sha256', $rawToken);
+        $hash = (strlen($rawToken) === 64) ? strtolower($rawToken) : hash('sha256', $rawToken);
         $stmt = $db->prepare("
             SELECT id, order_code, tenant_slug, company_name, amount, currency, beneficiary_name, beneficiary_rut_dni,
                    bank_name, account_number, approver_name, secondary_approver_name, token_hash, secondary_token_hash,
                    status, security_challenge, cryptographic_signature, whitelist_status, whitelist_detail,
                    required_approvals, approval_count, approvals_log_json, approved_at, expires_at, created_at
             FROM deepshield_orders
-            WHERE token_hash = ? OR (secondary_token_hash != '' AND secondary_token_hash = ?) OR LOWER(order_code) = LOWER(?)
+            WHERE token_hash = ? OR (secondary_token_hash != '' AND secondary_token_hash = ?)
             LIMIT 1
         ");
-        $stmt->execute([$hash, $hash, $rawToken]);
+        $stmt->execute([$hash, $hash]);
         $ord = $stmt->fetch();
         if (!$ord) {
             AdminCore::jsonError('Enlace criptográfico inválido o expirado.', 404);
+        }
+
+        // Expiración estricta en tiempo real si superó ventana de 48h
+        if (in_array($ord['status'], ['PENDING_APPROVAL', 'PARTIAL_APPROVAL'], true) && !empty($ord['expires_at']) && strtotime((string)$ord['expires_at']) < time()) {
+            $db->prepare("UPDATE deepshield_orders SET status = 'EXPIRED' WHERE id = ?")->execute([$ord['id']]);
+            $ord['status'] = 'EXPIRED';
         }
 
         // Si es una orden antigua sin whitelist_status calculado, evaluarla en caliente
@@ -209,8 +216,10 @@ if ($method === 'POST') {
     $body = AdminCore::readJsonBody();
     $action = trim((string)($body['action'] ?? ''));
 
-    // Login Operador de Tesorería del Cliente
+    // Login Operador de Tesorería del Cliente (con protección anti-fuerza bruta)
     if ($action === 'login') {
+        AdminCore::enforceSameOrigin();
+        AdminCore::checkRateLimit('shield_portal_login', 8, 900);
         $slug = strtolower(trim((string)($body['tenant_slug'] ?? '')));
         $email = strtolower(trim((string)($body['email'] ?? '')));
         $pass = (string)($body['password'] ?? '');
@@ -220,6 +229,7 @@ if ($method === 'POST') {
         $t = $stmt->fetch();
 
         if (!$t || strtolower($t['treasury_operator_email']) !== $email || !password_verify($pass, $t['treasury_operator_password'])) {
+            AdminCore::logAudit($email ?: 'unknown', 'SHIELD_LOGIN_FAIL', $slug, 'Credenciales de tesorería rechazadas');
             AdminCore::jsonError('Credenciales de tesorería inválidas.', 401);
         }
 
@@ -269,22 +279,32 @@ if ($method === 'POST') {
         AdminCore::jsonOk(['reported' => true]);
     }
 
-    // Resolver Orden desde Móvil del Director Firmante (/shield/verify) — soporta Quórum 1 o 2 Firmas Mancomunadas
+    // Resolver Orden desde Móvil del Director Firmante (/shield/verify) — Exige Token Criptográfico 192-bit + Vigencia Activa
     if ($action === 'resolve_oob') {
+        AdminCore::enforceSameOrigin();
+        AdminCore::checkRateLimit('oob_resolve_sign', 15, 900);
         $rawToken = trim((string)($body['token'] ?? ''));
         $decision = ($body['decision'] ?? '') === 'APPROVE' ? 'APPROVED' : 'REJECTED';
         $notes = trim((string)($body['notes'] ?? ''));
 
-        $hash = preg_match('/^[a-f0-9]{64}$/i', $rawToken) ? strtolower($rawToken) : hash('sha256', $rawToken);
+        if (strlen($rawToken) < 32 || !preg_match('/^[a-f0-9]+$/i', $rawToken)) {
+            AdminCore::jsonError('Token criptográfico de autorización inválido.', 403);
+        }
+
+        $hash = (strlen($rawToken) === 64) ? strtolower($rawToken) : hash('sha256', $rawToken);
         $stmt = $db->prepare("
             SELECT * FROM deepshield_orders
-            WHERE token_hash = ? OR (secondary_token_hash != '' AND secondary_token_hash = ?) OR LOWER(order_code) = LOWER(?)
+            WHERE token_hash = ? OR (secondary_token_hash != '' AND secondary_token_hash = ?)
             LIMIT 1
         ");
-        $stmt->execute([$hash, $hash, $rawToken]);
+        $stmt->execute([$hash, $hash]);
         $ord = $stmt->fetch();
         if (!$ord) {
-            AdminCore::jsonError('Orden no encontrada.', 404);
+            AdminCore::jsonError('Orden no encontrada o token inválido.', 404);
+        }
+        if (!empty($ord['expires_at']) && strtotime((string)$ord['expires_at']) < time()) {
+            $db->prepare("UPDATE deepshield_orders SET status = 'EXPIRED' WHERE id = ? AND status IN ('PENDING_APPROVAL', 'PARTIAL_APPROVAL')")->execute([$ord['id']]);
+            AdminCore::jsonError('Esta orden de pago expiró por ventana de seguridad (48h). Emita una nueva orden.', 410);
         }
         if (!in_array($ord['status'], ['PENDING_APPROVAL', 'PARTIAL_APPROVAL'], true)) {
             AdminCore::jsonError('Esta instrucción ya fue cerrada (' . $ord['status'] . ').', 409);
@@ -387,7 +407,8 @@ if ($method === 'POST') {
         ]);
     }
 
-    // Acciones autenticadas del Operador de Tesorería en /shield/portal
+    // Acciones autenticadas del Operador de Tesorería en /shield/portal (con blindaje Same-Origin anti-CSRF)
+    AdminCore::enforceSameOrigin();
     if (empty($_SESSION['ks_shield_tenant']['id'])) {
         AdminCore::jsonError('Sesión de tesorería expirada.', 401);
     }
@@ -500,7 +521,7 @@ if ($method === 'POST') {
         ]);
 
         $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'dev.keystoneadvisors.cl';
+        $host = AdminCore::safeHost();
         $verifyUrl1 = "{$proto}://{$host}/shield/verify/?token={$rawToken1}";
         $verifyUrl2 = $rawToken2 !== '' ? "{$proto}://{$host}/shield/verify/?token={$rawToken2}" : null;
 
@@ -562,7 +583,7 @@ if ($method === 'POST') {
         }
 
         $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'dev.keystoneadvisors.cl';
+        $host = AdminCore::safeHost();
         $expiresAt = date('Y-m-d H:i:s', time() + 48 * 3600);
 
         $ins = $db->prepare("

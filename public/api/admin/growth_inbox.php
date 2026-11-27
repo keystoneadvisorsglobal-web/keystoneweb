@@ -289,8 +289,8 @@ if ($method === 'POST') {
         }
 
         $trackTok = 'out_' . bin2hex(random_bytes(12));
-        $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'dev.keystoneadvisors.cl';
+        $proto = 'https';
+        $host = AdminCore::safeHost();
         $pixelUrl = "{$proto}://{$host}/api/track.php?o={$trackTok}";
         $ctaUrl = "{$proto}://{$host}/api/track.php?c={$trackTok}&p=trust";
 

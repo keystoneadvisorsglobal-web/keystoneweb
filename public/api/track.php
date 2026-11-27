@@ -39,8 +39,8 @@ if (!empty($_GET['c'])) {
         $stmt->execute([$tok]);
     }
     // Solo redirigir a rutas internas o dominios oficiales de Keystone (prevención Open Redirect OWASP)
-    $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'dev.keystoneadvisors.cl';
+    $proto = 'https';
+    $host = AdminCore::safeHost();
     $dest = "{$proto}://{$host}/";
     if (!empty($_GET['p']) && in_array($_GET['p'], ['trust', 'shield/portal'], true)) {
         $dest .= $_GET['p'] . '/';

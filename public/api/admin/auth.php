@@ -55,9 +55,10 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+    AdminCore::enforceSameOrigin();
     $body = AdminCore::readJsonBody();
     $action = trim((string)($body['action'] ?? 'login'));
-    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    $ip = AdminCore::clientIp();
 
     // -------------------------------------------------------------------------
     // PASO 1: LOGIN PRIMARIO (USUARIO / EMAIL + CLAVE)
@@ -141,9 +142,10 @@ if ($method === 'POST') {
     }
 
     // -------------------------------------------------------------------------
-    // PASO 2: VERIFICACIÓN DE DESAFÍO 2FA PENDIENTE
+    // PASO 2: VERIFICACIÓN DE DESAFÍO 2FA PENDIENTE (CON BLOQUEO TRAS 5 FALLOS)
     // -------------------------------------------------------------------------
     if ($action === 'verify_2fa_login') {
+        AdminCore::checkRateLimit('admin_2fa_totp', 6, 900);
         $pendingUid = (int)($_SESSION['ks_pending_2fa_uid'] ?? 0);
         if ($pendingUid <= 0) {
             AdminCore::jsonError('No existe un desafío 2FA pendiente. Inicie sesión nuevamente.', 400);
@@ -154,9 +156,17 @@ if ($method === 'POST') {
         $row = $stmt->fetch();
 
         if (!$row || (int)$row['is_active'] !== 1 || !AdminCore::verifyTotpCode((string)$row['totp_secret'], $code)) {
-            AdminCore::logAudit($row['username'] ?? 'uid:' . $pendingUid, 'AUTH_2FA_FAIL', '2fa', 'Código TOTP rechazado');
+            $_SESSION['ks_2fa_fails'] = (int)($_SESSION['ks_2fa_fails'] ?? 0) + 1;
+            $insAtt = $db->prepare("INSERT INTO login_attempts (ip_address, username) VALUES (?, ?)");
+            $insAtt->execute([$ip, $row['username'] ?? ('uid:' . $pendingUid)]);
+            AdminCore::logAudit($row['username'] ?? 'uid:' . $pendingUid, 'AUTH_2FA_FAIL', '2fa', 'Código TOTP rechazado (intento ' . $_SESSION['ks_2fa_fails'] . ')');
+            if ($_SESSION['ks_2fa_fails'] >= 5) {
+                unset($_SESSION['ks_pending_2fa_uid'], $_SESSION['ks_2fa_fails']);
+                AdminCore::jsonError('Demasiados códigos 2FA incorrectos. Su sesión temporal fue invalidada; ingrese usuario y clave nuevamente.', 429);
+            }
             AdminCore::jsonError('Código de verificación 2FA inválido.', 401);
         }
+        unset($_SESSION['ks_2fa_fails']);
 
         unset($_SESSION['ks_pending_2fa_uid']);
         @session_regenerate_id(true);

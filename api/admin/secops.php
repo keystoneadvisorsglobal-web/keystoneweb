@@ -116,6 +116,13 @@ if ($method === 'GET') {
         ORDER BY a.id DESC LIMIT 100
     ")->fetchAll();
     $tenants = $db->query("SELECT id, tenant_slug, company_name, rut_dni, threshold_amount, threshold_currency, primary_approver_name, primary_approver_email, primary_approver_phone, secondary_approver_name, secondary_approver_email, secondary_approver_phone, dual_approval_threshold, treasury_operator_name, treasury_operator_email, whatsapp_instance, client_api_key, status, created_at FROM deepshield_tenants ORDER BY id DESC")->fetchAll();
+    if (!in_array($currentUser['role'] ?? '', ['superadmin', 'secops'], true)) {
+        foreach ($tenants as &$tItem) {
+            $rawKey = (string)($tItem['client_api_key'] ?? '');
+            $tItem['client_api_key'] = $rawKey !== '' ? ('dst_••••••••••••' . substr($rawKey, -4)) : '';
+        }
+        unset($tItem);
+    }
     $lastCron = AdminCore::getSetting('last_cron_run') ?: null;
 
     AdminCore::jsonOk([
@@ -818,7 +825,7 @@ if ($method === 'POST') {
         }
 
         $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'dev.keystoneadvisors.cl';
+        $host = AdminCore::safeHost();
         $updSent = $db->prepare("UPDATE redteam_targets SET status = 'SENT', sent_at = CURRENT_TIMESTAMP WHERE id = ?");
 
         $sentOk = 0;

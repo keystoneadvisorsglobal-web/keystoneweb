@@ -15,7 +15,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+require_once dirname(__DIR__) . '/admin/_core.php';
 require_once __DIR__ . '/TrustZeroTelemetryService.php';
+
+AdminCore::checkRateLimit('trust_telemetry', 25, 900);
 
 $domain = isset($_GET['domain']) ? trim($_GET['domain']) : 'keystoneadvisors.cl';
 $domain = preg_replace('#^https?://#i', '', $domain);
@@ -32,10 +35,16 @@ try {
         'success' => true,
         'data' => $data
     ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+} catch (InvalidArgumentException $e) {
+    http_response_code(422);
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ], JSON_UNESCAPED_UNICODE);
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => $e->getMessage()
-    ]);
+        'error' => 'No fue posible evaluar la postura del dominio.'
+    ], JSON_UNESCAPED_UNICODE);
 }

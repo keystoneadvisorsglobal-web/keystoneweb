@@ -11,20 +11,33 @@ if (empty($_SESSION['ks_admin_user'])) {
     die('Sesión no autenticada.');
 }
 
+$currentUser = $_SESSION['ks_admin_user'];
+$userRole = $currentUser['role'] ?? 'comercial';
 $db = AdminCore::db();
 $type = trim((string)($_GET['type'] ?? ''));
 $id = (int)($_GET['id'] ?? 0);
 
-// 1. Exportación CSV de Leads B2B
+// Segregación RBAC por tipo de documento confidencial
+if (in_array($type, ['leads_csv', 'scans_csv'], true) && !in_array($userRole, ['superadmin', 'comercial'], true)) {
+    http_response_code(403);
+    die('Su rol no tiene permisos para exportar bases comerciales.');
+}
+if (in_array($type, ['treasury_pdf', 'dmarc_pdf', 'redteam_pdf'], true) && !in_array($userRole, ['superadmin', 'secops'], true)) {
+    http_response_code(403);
+    die('Su rol requiere privilegios SecOps o Superadmin para descargar actas periciales.');
+}
+
+// 1. Exportación CSV de Leads B2B (con neutralización anti-CSV Formula Injection)
 if ($type === 'leads_csv') {
     header('Content-Type: text/csv; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
     header('Content-Disposition: attachment; filename="Keystone_Pipeline_B2B_' . date('Ymd_Hi') . '.csv"');
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM para Excel
     fputcsv($out, ['Referencia', 'Fecha', 'Correo', 'Dominio', 'Pilar', 'Servicio', 'Precio', 'Estado', 'Prioridad', 'Tarjeta KeyHub', 'Resumen BEC', 'Notas']);
     $rows = $db->query("SELECT order_ref, created_at, email, domain, pillar, service_name, price_info, status, priority, keyhub_card_code, scan_summary, notes FROM micro_leads ORDER BY id DESC")->fetchAll();
     foreach ($rows as $r) {
-        fputcsv($out, array_values($r));
+        fputcsv($out, array_map([AdminCore::class, 'sanitizeCsvCell'], array_values($r)));
     }
     fclose($out);
     exit;
@@ -33,13 +46,14 @@ if ($type === 'leads_csv') {
 // 2. Exportación CSV de Escaneos BEC
 if ($type === 'scans_csv') {
     header('Content-Type: text/csv; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
     header('Content-Disposition: attachment; filename="Keystone_Radar_BEC_' . date('Ymd_Hi') . '.csv"');
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF");
     fputcsv($out, ['Referencia', 'Fecha', 'Dominio', 'Score', 'Nivel Riesgo', 'DMARC', 'SPF', 'MX', 'TLS/HSTS']);
     $rows = $db->query("SELECT scan_ref, created_at, domain, score, risk_level, dmarc_label, spf_status, mx_status, tls_status FROM bec_scans ORDER BY id DESC")->fetchAll();
     foreach ($rows as $r) {
-        fputcsv($out, array_values($r));
+        fputcsv($out, array_map([AdminCore::class, 'sanitizeCsvCell'], array_values($r)));
     }
     fclose($out);
     exit;

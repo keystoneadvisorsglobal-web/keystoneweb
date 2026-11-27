@@ -146,8 +146,8 @@ if ($method === 'POST') {
         $expiresAt,
     ]);
 
-    $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'dev.keystoneadvisors.cl';
+    $proto = 'https';
+    $host = AdminCore::safeHost();
     $verifyUrl1 = "{$proto}://{$host}/shield/verify/?token={$rawToken1}";
     $verifyUrl2 = $rawToken2 !== '' ? "{$proto}://{$host}/shield/verify/?token={$rawToken2}" : null;
 

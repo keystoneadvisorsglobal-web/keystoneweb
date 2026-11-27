@@ -1,0 +1,10 @@
+# Bloqueo perimetral HTTP directo a librerías internas PHP (SOL-0348)
+# Permite require_once desde el sistema de archivos PHP, deniega peticiones HTTP externas
+Options -Indexes
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>
